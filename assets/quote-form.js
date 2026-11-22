@@ -47,10 +47,11 @@
       '<input name="address_detail" maxlength="100" placeholder="상세주소 (동·호수, 층 등)" aria-label="상세주소"></div>' +
       (isNew ? '' :
       '<div class="q-pwtoggle"><button type="button" class="q-link" data-act="pwopen" aria-expanded="false" aria-controls="qf-pwbox">비밀번호 변경 ▾</button></div>' +
-      '<div class="q-pwbox" id="qf-pwbox" hidden><div class="q-grid q-g3">' +
+      '<div class="q-pwbox" id="qf-pwbox" hidden><div class="q-grid q-g3 q-g3b">' +
       '<div class="q-f"><label for="qf-pw">새 비밀번호</label><input id="qf-pw" name="password" type="password" maxlength="64" autocomplete="new-password" placeholder="4자 이상"></div>' +
-      '<div class="q-f"><label for="qf-pw2">새 비밀번호 확인</label><input id="qf-pw2" name="password2" type="password" maxlength="64" autocomplete="new-password"></div>' +
-      '<p class="q-hint">‘수정’ 버튼을 눌러야 변경됩니다.</p></div></div>') +
+      '<div class="q-f"><label for="qf-pw2">새 비밀번호 확인</label><input id="qf-pw2" name="password2" type="password" maxlength="64" autocomplete="new-password"></div></div>' +
+      '<div class="q-pwact"><button type="button" class="q-btn q-btn-red q-btn-sm" data-act="pwsave">수정</button><button type="button" class="q-btn q-btn-line q-btn-sm" data-act="pwcancel">취소</button>' +
+      '<em class="q-pwmsg q-pwbox-msg" aria-live="polite">‘수정’을 눌러야 비밀번호가 변경됩니다.</em></div></div>') +
       '</div></fieldset>' +
 
       '<fieldset class="q-sec q-st"><legend><span class="q-no">2</span>사업장 정보 <small>한 회사에 여러 사업장을 등록할 수 있습니다</small></legend>' +
@@ -145,12 +146,9 @@
       else if (act === 'pick') s.querySelector('input[type=file]').click();
       else if (act === 'rm-file') { s._files.splice(+b.getAttribute('data-i'), 1); renderFiles(s); }
       else if (act === 'addr') openAddr();
-      else if (act === 'pwopen') {
-        var box = $('.q-pwbox'), open = box.hidden;
-        box.hidden = !open; b.setAttribute('aria-expanded', open); b.textContent = open ? '비밀번호 변경 취소 ▴' : '비밀번호 변경 ▾';
-        field('password').value = ''; field('password2').value = '';
-        if (open) field('password').focus();
-      }
+      else if (act === 'pwopen') pwToggle($('.q-pwbox').hidden);
+      else if (act === 'pwcancel') pwToggle(false);
+      else if (act === 'pwsave') changePw(b);
       else if (act === 'pwshow') {
         var pi = field('password'), on = pi.type === 'password';
         pi.type = on ? 'text' : 'password'; b.textContent = on ? '숨김' : '보기'; b.setAttribute('aria-pressed', on);
@@ -164,10 +162,27 @@
       });
       e.target.value = ''; renderFiles(s); say(errs.join('\n'));
     });
-    var pwm = $('.q-pwmsg'), pwHint = pwm ? pwm.textContent : '';
+    function pwToggle(open) {
+      var box = $('.q-pwbox'), t = $('[data-act="pwopen"]');
+      box.hidden = !open; t.setAttribute('aria-expanded', open); t.textContent = open ? '비밀번호 변경 닫기 ▴' : '비밀번호 변경 ▾';
+      field('password').value = ''; field('password2').value = '';
+      var m = $('.q-pwbox-msg'); m.textContent = '‘수정’을 눌러야 비밀번호가 변경됩니다.'; m.className = 'q-pwmsg q-pwbox-msg';
+      if (open) field('password').focus();
+    }
+    function changePw(btn) {
+      var m = $('.q-pwbox-msg'), p1 = field('password').value, p2 = field('password2').value;
+      function bad(t, el) { m.textContent = t; m.className = 'q-pwmsg q-pwbox-msg err'; if (el) el.focus(); }
+      if (p1.length < 4) return bad('새 비밀번호는 4자 이상 입력하세요.', field('password'));
+      if (p1 !== p2) return bad('비밀번호 확인이 일치하지 않습니다.', field('password2'));
+      if (!opt.onChangePassword) return bad('비밀번호를 변경할 수 없습니다.');
+      btn.disabled = true;
+      opt.onChangePassword(p1).then(function () { pwToggle(false); say('비밀번호가 변경되었습니다.', true); },
+        function (er) { bad(er.message); }).then(function () { btn.disabled = false; });
+    }
+    var pwm = $('.q-pwmsg:not(.q-pwbox-msg)'), pwHint = pwm ? pwm.textContent : '';
     function pwSay(t) { if (pwm) { pwm.textContent = t || pwHint; pwm.className = 'q-pwmsg' + (t ? ' err' : ''); } }
     form.addEventListener('input', function (e) {
-      if (e.target.name === 'password') pwSay('');
+      if (e.target.name === 'password' && mode === 'new') pwSay('');
       if (e.target.getAttribute('aria-invalid') === 'true' && e.target !== biz) e.target.removeAttribute('aria-invalid');
     });
     form.addEventListener('focusout', function (e) {
@@ -205,14 +220,8 @@
     function validate() {
       var v = function (n, t, root) { var i = field(n, root); if (!i.value.trim()) fail(t, i); return i.value.trim(); };
       v('name', '의뢰회사명을 입력하세요.');
-      var pwBox = $('.q-pwbox'), pwOpen = !pwBox || !pwBox.hidden;
-      var pwEl = field('password'), pw = pwEl && pwOpen ? pwEl.value : '', pw2El = field('password2'), pw2 = pw2El && pwOpen ? pw2El.value : '';
-      if (mode === 'new' && pwEl) {
-        if (pw.length < 4) { var pe = new Error('비밀번호는 4자 이상 입력하세요.'); pe.input = pwEl; pe.inline = true; throw pe; }
-      } else if (mode !== 'new' && (pw || pw2)) {
-        if (pw.length < 4) fail('비밀번호는 4자 이상 입력하세요.', pwEl);
-        if (pw !== pw2) fail('비밀번호 확인이 일치하지 않습니다.', pw2El);
-      }
+      var pwEl = mode === 'new' ? field('password') : null;
+      if (pwEl && pwEl.value.length < 4) { var pe = new Error('비밀번호는 4자 이상 입력하세요.'); pe.input = pwEl; pe.inline = true; throw pe; }
       if (!C.validBiz(biz.value)) fail('사업자등록번호가 올바르지 않습니다. 번호를 다시 확인해 주세요.', biz);
       v('address', '‘주소 검색’으로 주소를 입력하세요.', null);
       v('phone', '회사 전화번호를 입력하세요.');
@@ -242,7 +251,7 @@
         });
       }, Promise.resolve());
       return chain.then(function () {
-        var pwEl2 = field('password');
+        var pwEl2 = mode === 'new' ? field('password') : null;
         var out = {
           id: data && data.id || null,
           name: field('name').value.trim(), biz_no: C.digits(biz.value),
@@ -257,8 +266,7 @@
             };
           })
         };
-        var pb = $('.q-pwbox'), pbOpen = !pb || !pb.hidden;
-        if (opt.pw) out.password = opt.pw; else if (pwEl2 && pbOpen && pwEl2.value) out.password = pwEl2.value;
+        if (opt.pw) out.password = opt.pw; else if (pwEl2 && pwEl2.value) out.password = pwEl2.value;
         return out;
       });
     }

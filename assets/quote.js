@@ -131,7 +131,8 @@
       form = F.create($('#edHost'), {
         mode: 'edit', data: c,
         onDeleteSite: function (id) { return C.rpc('delete_site', { p_token: tok(), p_site_id: id }).catch(function (e) { expired(e); throw e; }); },
-        onSitesChange: updateDel
+        onSitesChange: updateDel,
+        onChangePassword: function (pw) { return C.rpc('set_company_password', { p_token: tok(), p_new: pw }).catch(function (e) { expired(e); throw e; }); }
       });
       var btn = document.createElement('button'); btn.type = 'button'; btn.className = 'q-btn q-btn-red'; btn.textContent = '수정';
       form.actions.appendChild(btn);

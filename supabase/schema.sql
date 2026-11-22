@@ -376,6 +376,28 @@ exception when unique_violation then
   raise exception 'ERR:이미 등록된 사업자등록번호입니다.';
 end $$;
 
+-- 비밀번호만 변경 (업체: 본인 계정 / 관리자: 지정한 업체 계정). 다른 기기의 로그인 세션은 종료됩니다.
+create or replace function public.set_company_password(p_token uuid, p_new text, p_company_id uuid default null) returns jsonb
+language plpgsql security definer set search_path = public, extensions as $$
+declare u public.app_users; cid uuid; biz text;
+begin
+  u := public._auth(p_token);
+  if u.role = 'admin' then cid := p_company_id; else cid := u.company_id; end if;
+  if cid is null then raise exception 'FORBIDDEN'; end if;
+  if coalesce(length(p_new), 0) < 4 then raise exception 'ERR:새 비밀번호는 4자 이상 입력하세요.'; end if;
+  select biz_no into biz from public.companies where id = cid;
+  if biz is null then raise exception 'ERR:업체를 찾을 수 없습니다.'; end if;
+  if exists (select 1 from public.app_users where company_id = cid and role = 'customer') then
+    update public.app_users set pass_hash = crypt(p_new, gen_salt('bf')) where company_id = cid and role = 'customer';
+    delete from public.app_sessions
+     where user_id in (select id from public.app_users where company_id = cid and role = 'customer') and user_id <> u.id;
+  else
+    insert into public.app_users(username, pass_hash, role, company_id)
+    values (biz, crypt(p_new, gen_salt('bf')), 'customer', cid);
+  end if;
+  return jsonb_build_object('ok', true);
+end $$;
+
 create or replace function public.delete_company(p_token uuid, p_id uuid default null) returns jsonb
 language plpgsql security definer set search_path = public, extensions as $$
 declare u public.app_users; cid uuid;
@@ -499,7 +521,7 @@ grant execute on function
   public.my_company(uuid), public.save_company(uuid, jsonb), public.delete_company(uuid, uuid),
   public.delete_site(uuid, uuid), public.list_companies(uuid), public.list_users(uuid),
   public.save_user(uuid, jsonb), public.delete_user(uuid, uuid),
-  public.change_password(uuid, text, text)
+  public.change_password(uuid, text, text), public.set_company_password(uuid, text, uuid)
   to anon, authenticated;
 
 -- ---------------------------------------------------------------- 기본 관리자 (admin / 1234)
