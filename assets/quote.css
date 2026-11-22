@@ -16,13 +16,6 @@ body.q-body{background:var(--mist);min-height:100vh}
 .q-tabs>[role=tab]{padding:10px 24px;font-weight:700;font-size:16px;color:var(--mute);border:1px solid transparent;border-bottom:0;margin-bottom:-2px;background:transparent}
 .q-tabs>[role=tab][aria-selected="true"]{background:var(--ink);color:#fff}
 .q-tabs>[role=tab]:hover:not([aria-selected="true"]){color:var(--ink)}
-.q-auth{margin-left:auto;display:flex;align-items:center;gap:8px;padding:0 0 6px 16px;font-size:14px}
-.q-login-inline{display:flex;gap:6px;align-items:center}
-.q-login-inline input{height:34px;padding:0 10px;border:1px solid #CFCACA;border-radius:2px;font:inherit;font-size:14px;width:190px;background:#fff}
-.q-login-inline input[type=password]{width:130px}
-.q-login-inline .q-btn{flex:none}
-.q-login-inline input:focus{outline:2px solid var(--red);outline-offset:-1px;border-color:var(--red)}
-.q-auth .q-who{color:var(--ink-2)}
 .q-empty small{color:var(--mute)}
 .q-sub{display:flex;gap:8px;align-items:center;margin:0 0 16px;flex-wrap:wrap}
 .q-sub .q-who{margin-left:auto;font-size:14px;color:var(--ink-2)}
@@ -167,11 +160,27 @@ dialog.q-dlg::backdrop{background:rgba(20,18,18,.6)}
   .q-sec{padding:14px 14px 12px}
   .q-site{padding:10px 12px 12px}
   .q-tabs>[role=tab]{flex:1;padding:12px 8px;font-size:15px}
-  .q-auth{flex-basis:100%;margin:0;padding:8px 0 8px;justify-content:space-between}
-  .q-login-inline{width:100%}
-  .q-auth,.q-login-inline{min-width:0}
-  .q-login-inline input{flex:1 1 0;min-width:0;width:0!important}
   .q-actions .q-btn{flex:1}
   .q-dl{grid-template-columns:100px 1fr}
   .q-hd-title{display:none}
 }
+
+/* 조회 → 확인 흐름 */
+.q-search .q-inline{margin-top:6px}
+.q-search .q-in{height:46px;font-size:16px}
+.q-search .q-btn{height:46px;min-width:96px}
+.q-tag{display:inline-block;font-size:12px;font-weight:800;letter-spacing:.04em;padding:3px 10px;background:var(--ink);color:#fff;margin-bottom:8px}
+.q-tag.new{background:var(--red)}
+.q-found h2,.q-banner h2{font-size:21px;margin-bottom:10px}
+.q-banner{border-top-color:var(--red);background:var(--q-co-bg)}
+.q-banner h2 em{font-style:normal;color:var(--red)}
+.q-found .q-dl{margin-bottom:10px}
+.q-pwstep{margin-top:14px;padding-top:14px;border-top:1px dashed var(--line)}
+.q-pwstep .q-inline input{flex:0 1 280px}
+.q-pwstep .q-pwmsg{display:block;margin-top:6px;min-height:18px}
+.q-nosite{padding:14px;background:#fff;border:1px dashed var(--q-st-line);text-align:center;color:var(--ink-2);font-size:14px}
+.q-nosite .q-btn{margin-left:8px}
+.q-h2{font-size:18px;margin-bottom:6px}
+.q-danger .q-btn[disabled]{opacity:.35}
+.q-danger .q-hint{margin-bottom:12px}
+@media (max-width:720px){.q-pwstep .q-inline{flex-wrap:wrap}.q-pwstep .q-inline input{flex:1 1 100%}}

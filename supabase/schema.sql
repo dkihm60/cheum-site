@@ -104,6 +104,17 @@ language sql volatile set search_path = public, extensions as $$
     from generate_series(1, 8)
 $$;
 
+-- 전화번호 가림 처리 (로그인 전 조회용)
+create or replace function public._mask_phone(t text) returns text
+language plpgsql immutable as $$
+declare d text := public._digits(t);
+begin
+  if d = '' then return null; end if;
+  if length(d) < 8 then return '****'; end if;
+  if length(d) = 8 then return left(d, 4) || '-****'; end if;
+  return left(d, case when d like '02%' then 2 else 3 end) || '-****-' || right(d, 4);
+end $$;
+
 create or replace function public._auth(p_token uuid) returns public.app_users
 language plpgsql security definer set search_path = public, extensions as $$
 declare u public.app_users;
@@ -268,6 +279,47 @@ begin
   return jsonb_build_object('ok', true, 'company_id', cid, 'username', biz, 'password', pw);
 end $$;
 
+-- 업체 조회(로그인 전): 사업자번호(10자리) 또는 회사명(2자 이상). 사업장·파일은 보여주지 않고 연락처는 가립니다.
+create or replace function public.lookup_company(p_q text) returns jsonb
+language plpgsql stable security definer set search_path = public, extensions as $$
+declare
+  q text := btrim(coalesce(p_q, ''));
+  d text := public._digits(q);
+  items jsonb;
+  by_biz boolean;
+begin
+  if length(q) < 2 then raise exception 'ERR:사업자등록번호 또는 회사명을 2자 이상 입력하세요.'; end if;
+  by_biz := q ~ '^[0-9[:space:]-]+$';
+  if by_biz and length(d) <> 10 then raise exception 'ERR:사업자등록번호는 숫자 10자리입니다.'; end if;
+
+  select coalesce(jsonb_agg(jsonb_build_object(
+           'ref', c.id, 'name', c.name,
+           'biz_masked', left(c.biz_no, 3) || '-' || substr(c.biz_no, 4, 2) || '-*****',
+           'address', c.address, 'phone', public._mask_phone(c.phone), 'fax', public._mask_phone(c.fax),
+           'site_count', (select count(*) from public.sites s where s.company_id = c.id),
+           'has_account', exists (select 1 from public.app_users u where u.company_id = c.id and u.role = 'customer')
+         ) order by c.name), '[]'::jsonb)
+    into items
+    from (select * from public.companies
+           where (by_biz and biz_no = d)
+              or (not by_biz and name ilike '%' || replace(replace(q, '%', '\%'), '_', '\_') || '%')
+           order by name limit 5) c;
+
+  return jsonb_build_object('ok', true, 'mode', case when by_biz then 'biz' else 'name' end,
+                            'valid', case when by_biz then public._valid_biz(d) else null end,
+                            'biz_no', case when by_biz then d else null end, 'items', items);
+end $$;
+
+-- 업체 비밀번호 확인(로그인): 조회에서 받은 ref + 비밀번호
+create or replace function public.company_login(p_ref uuid, p_password text) returns jsonb
+language plpgsql security definer set search_path = public, extensions as $$
+declare uname text;
+begin
+  select username into uname from public.app_users where company_id = p_ref and role = 'customer' limit 1;
+  if uname is null then return jsonb_build_object('ok', false, 'error', 'NO_ACCOUNT'); end if;
+  return public.login(uname, p_password);
+end $$;
+
 -- ---------------------------------------------------------------- 로그인 후 RPC
 create or replace function public.my_company(p_token uuid) returns jsonb
 language plpgsql security definer set search_path = public, extensions as $$
@@ -331,7 +383,10 @@ begin
   u := public._auth(p_token);
   if u.role = 'admin' then cid := p_id; else cid := u.company_id; end if;
   if cid is null then raise exception 'FORBIDDEN'; end if;
-  delete from public.companies where id = cid;       -- 사업장·파일·업체 계정까지 함께 삭제
+  if exists (select 1 from public.sites where company_id = cid) then
+    raise exception 'ERR:사업장 자료를 먼저 모두 삭제해야 회사정보를 삭제할 수 있습니다.';
+  end if;
+  delete from public.companies where id = cid;       -- 업체 로그인 계정까지 함께 삭제
   return jsonb_build_object('ok', true);
 end $$;
 
@@ -436,11 +491,11 @@ end $$;
 
 -- ---------------------------------------------------------------- 권한
 revoke execute on function public._digits(text), public._valid_biz(text), public._auth(uuid),
-  public._admin(uuid), public._company_json(uuid), public._save_company(uuid, jsonb), public._gen_pw()
+  public._admin(uuid), public._company_json(uuid), public._save_company(uuid, jsonb), public._gen_pw(), public._mask_phone(text)
   from public, anon, authenticated;
 
 grant execute on function
-  public.login(text, text), public.logout(uuid), public.register_company(jsonb),
+  public.login(text, text), public.logout(uuid), public.lookup_company(text), public.company_login(uuid, text), public.register_company(jsonb),
   public.my_company(uuid), public.save_company(uuid, jsonb), public.delete_company(uuid, uuid),
   public.delete_site(uuid, uuid), public.list_companies(uuid), public.list_users(uuid),
   public.save_user(uuid, jsonb), public.delete_user(uuid, uuid),

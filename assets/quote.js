@@ -1,161 +1,166 @@
-/* 견적의뢰 — 고객 화면 (신규등록 / 수정 / 삭제) */
+/* 견적의뢰 — 고객 화면: 조회 → (등록 업체) 비밀번호 확인 / (미등록) 신규등록 → 입력·수정·삭제 */
 (function () {
   'use strict';
-  var C = window.Cheum, F = window.CheumForm;
+  var C = window.Cheum, F = window.CheumForm, esc = C.esc;
   var $ = function (s) { return document.querySelector(s); };
-  var tabs = Array.prototype.slice.call(document.querySelectorAll('[data-tab]'));
-  var panes = { new: $('#pane-new'), edit: $('#pane-edit'), del: $('#pane-del') };
-  var company = null, editForm = null, current = 'new';
-  var SCOPE = 'customer';
+  var stage = $('#stage'), qs = $('#qs'), SCOPE = 'customer';
+  var company = null, form = null;
 
   if (!C.ready) $('#notReady').hidden = false;
 
-  /* ---------- 탭 ---------- */
-  function show(name) {
-    current = name;
-    tabs.forEach(function (t) {
-      var on = t.getAttribute('data-tab') === name;
-      t.setAttribute('aria-selected', on); t.tabIndex = on ? 0 : -1;
-    });
-    Object.keys(panes).forEach(function (k) { panes[k].hidden = k !== name; });
-    if (name !== 'new') load(); else drawAuth();
-    try { history.replaceState(null, '', '#' + name); } catch (e) { /* 무시 */ }
+  function say(t, ok) { var m = $('#qsMsg'); m.className = 'q-msg' + (t ? (ok ? ' ok' : ' err') : ''); m.textContent = t || ''; }
+  function tok() { return C.token(SCOPE); }
+  function dropSession() {
+    var t = tok(); C.token(SCOPE, null); company = null; form = null;
+    if (t) C.rpc('logout', { p_token: t }).catch(function () { /* 무시 */ });
   }
-  tabs.forEach(function (t) {
-    t.addEventListener('click', function () { show(t.getAttribute('data-tab')); });
-    t.addEventListener('keydown', function (e) {
-      var i = tabs.indexOf(t), n = e.key === 'ArrowRight' ? i + 1 : e.key === 'ArrowLeft' ? i - 1 : -1;
-      if (n >= 0 && n < tabs.length) { tabs[n].focus(); show(tabs[n].getAttribute('data-tab')); }
-    });
-  });
-
-  /* ---------- 신규등록 ---------- */
-  var newForm, newBtn = document.createElement('button');
-  newBtn.type = 'button'; newBtn.id = 'newSubmit'; newBtn.className = 'q-btn q-btn-red'; newBtn.textContent = '견적의뢰 등록';
-  function mountNew() { newForm = F.create($('#newHost'), { mode: 'new' }); newForm.actions.appendChild(newBtn); }
-  mountNew();
-  newBtn.addEventListener('click', function () {
-    if (!C.ready) { newForm.say('서비스 준비 중입니다. 전화로 문의해 주세요.'); return; }
-    busy(newBtn, true, '등록 중…');
-    newForm.say('');
-    newForm.payload(function (t) { newForm.say(t, true); }).then(function (p) {
-      return C.rpc('register_company', { p: p }).then(function (r) {
-        $('#doneId').textContent = C.fmtBiz(r.username);
-        $('#newCard').hidden = true; $('#newDone').hidden = false; window.scrollTo({ top: 0, behavior: 'smooth' });
-      });
-    }).catch(function (e) { if (!e.input) newForm.say(e.message); })
-      .then(function () { busy(newBtn, false, '견적의뢰 등록'); });
-  });
-  $('#doneAgain').addEventListener('click', function () {
-    mountNew();
-    $('#newCard').hidden = false; $('#newDone').hidden = true;
-  });
-  $('#doneEdit').addEventListener('click', function () { show('edit'); });
-
-  function busy(b, on, label) { b.disabled = on; b.textContent = label; }
-
-  /* ---------- 로그인(탭 줄 오른쪽) / 불러오기 ---------- */
-  var slot = $('#authSlot');
-  function say(host, t) { var m = host.querySelector('.q-msg'); if (m) { m.className = 'q-msg' + (t ? ' err' : ''); m.textContent = t || ''; } }
-  function placeholder(host) {
-    host.innerHTML = '<div class="q-card q-empty"><b>로그인 후 이용할 수 있습니다.</b><br>위쪽 탭 줄의 입력란에 사업자등록번호와 비밀번호를 입력하고 <b>로그인</b>을 눌러 주세요.' +
-      '<br><small>아이디·비밀번호는 신규등록 완료 화면에서 안내해 드립니다. 분실 시 031-676-5611 로 재설정을 요청해 주세요.</small><p class="q-msg" role="alert"></p></div>';
+  function reset() { dropSession(); stage.innerHTML = ''; }
+  function expired(e) {
+    if (e && e.code === 'AUTH_REQUIRED') { reset(); say('접속 시간이 만료되었습니다. 다시 조회해 주세요.'); return true; }
+    return false;
   }
-  function drawAuth() {
-    if (current === 'new') { slot.hidden = true; slot.innerHTML = ''; return; }
-    slot.hidden = false;
-    if (company) {
-      slot.innerHTML = '<span class="q-who"><b>' + C.esc(company.name) + '</b> · ' + C.fmtBiz(company.biz_no) + '</span><button type="button" class="q-btn q-btn-line q-btn-sm" data-act="logout">로그아웃</button>';
-      slot.querySelector('[data-act="logout"]').addEventListener('click', function () {
-        var t = C.token(SCOPE); C.token(SCOPE, null); company = null;
-        if (t) C.rpc('logout', { p_token: t }).catch(function () { /* 무시 */ });
-        load();
-      });
-      return;
-    }
-    slot.innerHTML = '<form class="q-login-inline" novalidate><input id="lg-id" inputmode="numeric" maxlength="12" placeholder="사업자번호 000-00-00000" aria-label="아이디(사업자등록번호)" autocomplete="username">' +
-      '<input id="lg-pw" type="password" placeholder="비밀번호" aria-label="비밀번호" autocomplete="current-password">' +
-      '<button class="q-btn q-btn-red q-btn-sm" type="submit">로그인</button></form>';
-    var f = slot.querySelector('form'), id = f.querySelector('#lg-id');
-    id.addEventListener('input', function () { id.value = C.fmtBiz(id.value); });
+  function busy(b, on, label) { b.disabled = on; if (label) b.textContent = label; }
+
+  /* ---------- 조회 ---------- */
+  qs.addEventListener('input', function () { if (/^[0-9\s-]+$/.test(qs.value)) qs.value = C.fmtBiz(qs.value); });
+  $('#qsForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var q = qs.value.trim(), b = e.target.querySelector('button');
+    say(''); if (!C.ready) { say('서비스 준비 중입니다. 전화로 문의해 주세요.'); return; }
+    reset(); busy(b, true, '조회 중…');
+    C.rpc('lookup_company', { p_q: q }).then(function (r) {
+      if (!r.items.length) return newFlow(r, q);
+      if (r.items.length === 1) return found(r.items[0]);
+      return candidates(r.items);
+    }).catch(function (er) { say(er.message); }).then(function () { busy(b, false, '조회'); });
+  });
+
+  /* ---------- 비밀번호 한 칸 (공용) ---------- */
+  function pwStep(host, label, onOk) {
+    host.insertAdjacentHTML('beforeend',
+      '<form class="q-pwstep" novalidate><div class="q-f"><label for="stepPw">비밀번호 <i>*</i></label><div class="q-inline">' +
+      '<input id="stepPw" type="password" maxlength="64" autocomplete="' + (label === '다음' ? 'new-password' : 'current-password') + '" placeholder="' + (label === '다음' ? '사용하실 비밀번호 (4자 이상)' : '비밀번호') + '">' +
+      '<button type="button" class="q-btn q-btn-line q-btn-sm2" data-show aria-pressed="false">보기</button>' +
+      '<button type="submit" class="q-btn q-btn-red">' + label + '</button></div>' +
+      '<em class="q-pwmsg" aria-live="polite"></em></div></form>');
+    var f = host.querySelector('.q-pwstep'), inp = f.querySelector('input'), m = f.querySelector('.q-pwmsg'), sb = f.querySelector('[type=submit]');
+    function pm(t) { m.textContent = t || ''; m.className = 'q-pwmsg' + (t ? ' err' : ''); }
+    f.querySelector('[data-show]').addEventListener('click', function () {
+      var on = inp.type === 'password'; inp.type = on ? 'text' : 'password'; this.textContent = on ? '숨김' : '보기';
+    });
+    inp.addEventListener('input', function () { pm(''); });
     f.addEventListener('submit', function (e) {
       e.preventDefault();
-      var host = panes[current], b = f.querySelector('button');
-      if (!C.ready) { say(host, '서비스 준비 중입니다.'); return; }
-      b.disabled = true;
-      C.rpc('login', { p_username: id.value, p_password: f.querySelector('#lg-pw').value }).then(function (r) {
-        if (!r.ok) throw new Error(r.error === 'LOCKED' ? '로그인 시도가 5회 실패하여 10분간 잠겼습니다.' : '아이디 또는 비밀번호가 맞지 않습니다.');
-        if (r.role !== 'customer') throw new Error('업체 계정으로 로그인해 주세요. (관리자는 관리자 페이지를 이용하세요)');
-        C.token(SCOPE, r.token); return load(true);
-      }).catch(function (er) { say(host, er.message); b.disabled = false; });
+      if (inp.value.length < 4) { pm('비밀번호는 4자 이상 입력하세요.'); inp.focus(); return; }
+      busy(sb, true);
+      Promise.resolve(onOk(inp.value, pm, f)).then(function (keep) { if (keep !== 'done') busy(sb, false); }, function (er) { pm(er.message); busy(sb, false); });
     });
+    inp.focus({ preventScroll: true });
+    return f;
   }
 
-  function load(force) {
-    var tok = C.token(SCOPE);
-    if (!tok) { company = null; placeholder(panes.edit); placeholder(panes.del); drawAuth(); return Promise.resolve(); }
-    if (company && !force) { render(); return Promise.resolve(); }
-    return C.rpc('my_company', { p_token: tok }).then(function (c) { company = c; render(); })
-      .catch(function (e) {
-        C.token(SCOPE, null); company = null;
-        placeholder(panes.edit); placeholder(panes.del); drawAuth();
-        if (e.code && e.code !== 'AUTH_REQUIRED') alert(e.message);
-      });
+  /* ---------- 여러 건 조회됨 ---------- */
+  function candidates(items) {
+    stage.innerHTML = '<div class="q-card"><span class="q-tag">조회 결과 ' + items.length + '건</span><p class="q-hint" style="margin:6px 0 10px">해당하는 업체를 선택하세요.</p><ul class="q-list">' +
+      items.map(function (it, i) {
+        return '<li><b>' + esc(it.name) + '</b><span>' + esc(it.biz_masked) + ' · ' + esc(it.address) + '</span><button type="button" class="q-btn q-btn-line q-btn-sm" data-i="' + i + '">선택</button></li>';
+      }).join('') + '</ul></div>';
+    stage.querySelectorAll('[data-i]').forEach(function (b) { b.addEventListener('click', function () { found(items[+b.getAttribute('data-i')]); }); });
   }
 
-  function render() { renderEdit(); renderDel(); drawAuth(); }
-
-  /* ---------- 수정 ---------- */
-  function renderEdit() {
-    var host = panes.edit;
-    host.innerHTML = '<div class="q-card"><div class="q-eh"></div></div>';
-    editForm = F.create(host.querySelector('.q-eh'), { mode: 'edit', data: company });
-    var btn = document.createElement('button');
-    btn.type = 'button'; btn.className = 'q-btn q-btn-red'; btn.setAttribute('data-act', 'save'); btn.textContent = '수정 내용 저장';
-    editForm.actions.appendChild(btn);
-    btn.addEventListener('click', function () {
-      busy(btn, true, '저장 중…'); editForm.say('');
-      editForm.payload(function (t) { editForm.say(t, true); }).then(function (p) {
-        return C.rpc('save_company', { p_token: C.token(SCOPE), p: p }).then(function () { return load(true); })
-          .then(function () { var f2 = panes.edit.querySelector('.q-msg'); if (f2) { f2.className = 'q-msg ok'; f2.textContent = '수정 내용이 저장되었습니다.'; } window.scrollTo({ top: 0, behavior: 'smooth' }); });
-      }).catch(function (e) { if (e.code === 'AUTH_REQUIRED') { C.token(SCOPE, null); load(); alert(e.message); } else if (!e.input) editForm.say(e.message); })
-        .then(function () { btn.disabled = false; btn.textContent = '수정 내용 저장'; });
-    });
-  }
-
-  /* ---------- 삭제 ---------- */
-  function renderDel() {
-    var host = panes.del;
-    host.innerHTML =
-      '<div class="q-card"><h2 style="font-size:18px;margin-bottom:6px">사업장 삭제</h2><p class="q-hint">삭제한 사업장과 첨부파일 정보는 복구할 수 없습니다.</p>' +
-      '<ul class="q-list">' + (company.sites.length ? company.sites.map(function (s) {
-        return '<li><b>' + C.esc(s.site_name) + '</b><span>' + C.esc(s.manager) + ' · ' + C.esc(s.contact) + ' · 파일 ' + s.files.length + '개</span>' +
-          '<button type="button" class="q-btn q-btn-line q-btn-sm" data-site="' + s.id + '">삭제</button></li>';
-      }).join('') : '<li><span>등록된 사업장이 없습니다.</span></li>') + '</ul></div>' +
-      '<div class="q-card q-danger"><h2 style="font-size:18px;margin-bottom:6px">회사 전체 삭제</h2>' +
-      '<p class="q-hint">‘' + C.esc(company.name) + '’의 회사 정보·모든 사업장·첨부파일 정보·로그인 계정이 함께 삭제됩니다.</p>' +
-      '<div class="q-f" style="max-width:360px;margin-bottom:12px"><label for="del-ok">확인을 위해 <b>삭제</b>라고 입력하세요</label><input id="del-ok" autocomplete="off"></div>' +
-      '<button type="button" class="q-btn q-btn-red" data-act="del-co">회사 전체 삭제</button><p class="q-msg" role="alert"></p></div>';
-    var m = host.querySelector('.q-msg');
-    host.querySelectorAll('[data-site]').forEach(function (b) {
-      b.addEventListener('click', function () {
-        if (!confirm('이 사업장을 삭제할까요?')) return;
-        b.disabled = true;
-        C.rpc('delete_site', { p_token: C.token(SCOPE), p_site_id: b.getAttribute('data-site') })
-          .then(function () { return load(true); }).catch(function (e) { alert(e.message); b.disabled = false; });
+  /* ---------- 등록된 업체: 회사정보만 보여주고 비밀번호 확인 ---------- */
+  function found(it) {
+    stage.innerHTML = '<div class="q-card q-found"><span class="q-tag">등록된 업체</span><h2>' + esc(it.name) + '</h2>' +
+      '<dl class="q-dl"><dt>사업자번호</dt><dd class="num">' + esc(it.biz_masked) + '</dd><dt>주소</dt><dd>' + esc(it.address) + '</dd>' +
+      '<dt>전화 / FAX</dt><dd class="num">' + esc(it.phone || '-') + ' / ' + esc(it.fax || '-') + '</dd>' +
+      '<dt>등록 사업장</dt><dd>' + it.site_count + '건</dd></dl>' +
+      '<p class="q-hint">사업장·첨부파일은 <b>비밀번호 확인 후</b> 볼 수 있습니다. 비밀번호를 잊으셨다면 031-676-5611 로 재설정을 요청해 주세요.</p></div>';
+    var card = stage.firstChild;
+    if (!it.has_account) { card.insertAdjacentHTML('beforeend', '<p class="q-msg err">로그인 계정이 없는 업체입니다. 031-676-5611 로 문의해 주세요.</p>'); return; }
+    pwStep(card, '확인', function (pw, pm) {
+      return C.rpc('company_login', { p_ref: it.ref, p_password: pw }).then(function (r) {
+        if (!r.ok) throw new Error(r.error === 'LOCKED' ? '비밀번호가 5회 틀려 10분간 잠겼습니다. 잠시 후 다시 시도해 주세요.' : r.error === 'NO_ACCOUNT' ? '로그인 계정이 없습니다. 031-676-5611 로 문의해 주세요.' : '비밀번호가 맞지 않습니다.');
+        C.token(SCOPE, r.token); return editor('');
       });
     });
-    host.querySelector('[data-act="del-co"]').addEventListener('click', function () {
-      if (host.querySelector('#del-ok').value.trim() !== '삭제') { m.className = 'q-msg err'; m.textContent = '확인란에 ‘삭제’를 입력하세요.'; return; }
-      if (!confirm('정말 회사 전체를 삭제할까요? 되돌릴 수 없습니다.')) return;
-      C.rpc('delete_company', { p_token: C.token(SCOPE) }).then(function () {
-        C.token(SCOPE, null); company = null;
-        host.innerHTML = '<div class="q-card q-done"><h2>삭제되었습니다.</h2><p>견적의뢰 정보와 로그인 계정이 모두 삭제되었습니다.</p></div>';
-        panes.edit.innerHTML = ''; 
-      }).catch(function (e) { m.className = 'q-msg err'; m.textContent = e.message; });
+  }
+
+  /* ---------- 미등록: 신규등록 ---------- */
+  function newFlow(r, q) {
+    if (r.mode === 'biz' && !r.valid) { say('사업자등록번호가 올바르지 않습니다. 번호를 다시 확인해 주세요.'); return; }
+    var what = r.mode === 'biz' ? '사업자등록번호 <b class="num">' + esc(C.fmtBiz(r.biz_no)) + '</b>' : '회사명 ‘<b>' + esc(q) + '</b>’';
+    stage.innerHTML = '<div class="q-card q-banner"><span class="q-tag new">신규등록</span><h2>등록되지 않은 업체입니다. <em>신규등록</em>입니다.</h2>' +
+      '<p class="q-hint">' + what + '(으)로 등록된 자료가 없습니다. 사용하실 <b>비밀번호</b>를 먼저 입력한 뒤 자료를 입력해 주세요. 이후 수정·삭제 때 이 비밀번호를 사용합니다.</p></div>';
+    var card = stage.firstChild;
+    pwStep(card, '다음', function (pw, pm, f) {
+      f.querySelector('input').disabled = true; f.querySelector('[data-show]').disabled = true; f.querySelector('[type=submit]').hidden = true;
+      var host = document.createElement('div'); host.className = 'q-card'; stage.appendChild(host);
+      var data = r.mode === 'biz' ? { biz_no: r.biz_no } : { name: q };
+      form = F.create(host, { mode: 'new', data: data, pw: pw });
+      var btn = document.createElement('button'); btn.type = 'button'; btn.className = 'q-btn q-btn-red'; btn.textContent = '견적의뢰 등록';
+      form.actions.appendChild(btn);
+      btn.addEventListener('click', function () {
+        busy(btn, true, '등록 중…'); form.say('');
+        form.payload(function (t) { form.say(t, true); }).then(function (p) {
+          return C.rpc('register_company', { p: p }).then(function (res) {
+            return C.rpc('login', { p_username: res.username, p_password: pw }).then(function (lg) {
+              if (!lg.ok) throw new Error('등록은 되었으나 자동 로그인에 실패했습니다. 다시 조회해 주세요.');
+              C.token(SCOPE, lg.token); return editor('견적의뢰가 등록되었습니다. 아래에서 사업장·첨부파일을 추가·수정할 수 있습니다.');
+            });
+          });
+        }).catch(function (er) { if (!er.input) form.say(er.message); }).then(function () { btn.disabled = false; btn.textContent = '견적의뢰 등록'; });
+      });
+      host.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return 'done';
     });
   }
 
-  var h = (location.hash || '').replace('#', '');
-  if (h === 'edit' || h === 'del') show(h);
+  /* ---------- 비밀번호 확인 후: 추가 / 수정 / 삭제 ---------- */
+  function editor(note) {
+    return C.rpc('my_company', { p_token: tok() }).then(function (c) {
+      company = c; var files = c.sites.reduce(function (n, s) { return n + s.files.length; }, 0);
+      stage.innerHTML =
+        '<div class="q-sub"><span class="q-who"><b>' + esc(c.name) + '</b> · ' + C.fmtBiz(c.biz_no) + ' · 사업장 ' + c.sites.length + '건 · 첨부파일 ' + files + '개</span>' +
+        '<button type="button" class="q-btn q-btn-line q-btn-sm" data-act="logout">로그아웃</button></div>' +
+        (note ? '<p class="q-msg ok" role="status">' + esc(note) + '</p>' : '') +
+        '<div class="q-card"><div id="edHost"></div></div>' +
+        '<div class="q-card q-danger"><h2 class="q-h2">회사정보 삭제</h2><p class="q-hint" id="delHint"></p>' +
+        '<button type="button" class="q-btn q-btn-red" id="delCo">회사정보 삭제</button><p class="q-msg" id="delMsg" role="alert"></p></div>';
+      stage.querySelector('[data-act="logout"]').addEventListener('click', function () { reset(); say('로그아웃되었습니다.', true); qs.focus(); });
+
+      form = F.create($('#edHost'), {
+        mode: 'edit', data: c,
+        onDeleteSite: function (id) { return C.rpc('delete_site', { p_token: tok(), p_site_id: id }).catch(function (e) { expired(e); throw e; }); },
+        onSitesChange: updateDel
+      });
+      var btn = document.createElement('button'); btn.type = 'button'; btn.className = 'q-btn q-btn-red'; btn.textContent = '수정 내용 저장';
+      form.actions.appendChild(btn);
+      btn.addEventListener('click', function () {
+        busy(btn, true, '저장 중…'); form.say('');
+        form.payload(function (t) { form.say(t, true); }).then(function (p) {
+          return C.rpc('save_company', { p_token: tok(), p: p }).then(function () { return editor('저장되었습니다.'); });
+        }).catch(function (er) { if (!expired(er) && !er.input) form.say(er.message); busy(btn, false, '수정 내용 저장'); });
+      });
+      $('#delCo').addEventListener('click', function () {
+        var m = $('#delMsg'); m.className = 'q-msg'; m.textContent = '';
+        if (form.savedSites() > 0) return;
+        if (!confirm('‘' + c.name + '’ 회사정보와 로그인 계정을 삭제할까요?\n삭제하면 복구할 수 없습니다.')) return;
+        C.rpc('delete_company', { p_token: tok() }).then(function () {
+          reset(); stage.innerHTML = '<div class="q-card q-done"><h2>삭제되었습니다.</h2><p>회사정보와 로그인 계정이 삭제되었습니다. 다시 이용하시려면 위에서 새로 조회해 주세요.</p></div>';
+          say('', true);
+        }).catch(function (er) { if (!expired(er)) { m.className = 'q-msg err'; m.textContent = er.message; } });
+      });
+      updateDel();
+      if (note) window.scrollTo({ top: 0, behavior: 'smooth' });
+    }).catch(function (er) { if (!expired(er)) say(er.message); });
+  }
+
+  /* 회사정보 삭제는 사업장 자료를 모두 삭제한 뒤에만 가능 */
+  function updateDel() {
+    var n = form.savedSites(), b = $('#delCo'), h = $('#delHint');
+    b.disabled = n > 0;
+    h.innerHTML = n > 0
+      ? '등록된 사업장 자료가 <b>' + n + '건</b> 남아 있습니다. 회사정보는 <b>사업장 자료를 먼저 모두 삭제</b>(각 사업장의 ‘삭제’ 버튼)한 뒤에 삭제할 수 있습니다.'
+      : '사업장 자료가 모두 삭제되었습니다. 이제 회사정보를 삭제할 수 있습니다. 삭제하면 로그인 계정도 함께 삭제됩니다.';
+  }
 })();

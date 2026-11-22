@@ -134,7 +134,9 @@
     res.querySelectorAll('[data-delco]').forEach(function (b) {
       b.addEventListener('click', function () {
         var c = S.companies.filter(function (x) { return x.id === b.getAttribute('data-delco'); })[0];
-        if (!c || !confirm('‘' + c.name + '’ 업체를 삭제할까요?\n사업장·파일 정보·로그인 계정이 함께 삭제되며 복구할 수 없습니다.')) return;
+        if (!c) return;
+        if (c.sites.length) { alert('사업장 자료가 ' + c.sites.length + '건 남아 있습니다.\n사업장 자료를 먼저 모두 삭제한 뒤에 업체(회사정보)를 삭제할 수 있습니다.'); return; }
+        if (!confirm('‘' + c.name + '’ 업체를 삭제할까요?\n로그인 계정도 함께 삭제되며 복구할 수 없습니다.')) return;
         call('delete_company', { p_id: c.id }).then(refresh).catch(function (e) { alert(e.message); });
       });
     });
@@ -159,7 +161,8 @@
   function companyDialog(c, siteId) {
     var dlg = dialog(c ? '업체 수정 — ' + c.name : '업체 신규등록');
     dlg.bd.innerHTML = '<div class="q-eh"></div>';
-    var form = F.create(dlg.bd.querySelector('.q-eh'), { mode: c ? 'edit' : 'new', data: c });
+    var form = F.create(dlg.bd.querySelector('.q-eh'), { mode: c ? 'edit' : 'new', data: c,
+      onDeleteSite: function (id) { return call('delete_site', { p_site_id: id }); } });
     form.actions.innerHTML = '<button type="button" class="q-btn q-btn-line" data-x2>취소</button><button type="button" class="q-btn q-btn-red" data-save>' + (c ? '저장' : '등록') + '</button>';
     if (c && siteId) setTimeout(function () { form.focusSite(siteId); }, 50);
     dlg.bd.querySelector('[data-x2]').addEventListener('click', function () { dlg.d.close(); });

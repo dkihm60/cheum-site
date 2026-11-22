@@ -23,11 +23,11 @@
       '</section>';
   }
 
-  function tpl(mode) {
-    var isNew = mode === 'new';
+  function tpl(mode, fixedPw) {
+    var isNew = mode === 'new', pwInline = isNew && !fixedPw;
     return '<form class="q-form" novalidate autocomplete="off">' +
       '<fieldset class="q-sec q-co"><legend><span class="q-no">1</span>의뢰회사 정보<span class="q-leg-act"></span></legend>' +
-      (isNew
+      (pwInline
         ? '<div class="q-grid q-gn"><div class="q-f"><label for="qf-name">의뢰회사명 <i>*</i></label><input id="qf-name" name="name" maxlength="100" autocomplete="organization"></div>' +
           '<div class="q-f q-pwf"><label for="qf-pw">비밀번호 <i>*</i></label><div class="q-inline">' +
           '<input id="qf-pw" name="password" type="password" maxlength="64" autocomplete="new-password" placeholder="4자 이상">' +
@@ -55,7 +55,8 @@
       '</div></fieldset>' +
 
       '<fieldset class="q-sec q-st"><legend><span class="q-no">2</span>사업장 정보 <small>한 회사에 여러 사업장을 등록할 수 있습니다</small></legend>' +
-      '<div class="q-sites"></div></fieldset>' +
+      '<div class="q-sites"></div>' +
+      '<div class="q-nosite" hidden>등록된 사업장이 없습니다. <button type="button" class="q-btn q-btn-st q-btn-sm" data-act="add-site">+ 사업장 추가</button></div></fieldset>' +
       '<p class="q-msg" role="alert" aria-live="assertive"></p>' +
       '</form>';
   }
@@ -63,7 +64,7 @@
   function create(host, opt) {
     opt = opt || {};
     var mode = opt.mode || 'new', data = opt.data || null;
-    var form = el(tpl(mode));
+    var form = el(tpl(mode, !!opt.pw));
     host.innerHTML = ''; host.appendChild(form);
     var $ = function (sel) { return form.querySelector(sel); };
     var sitesEl = $('.q-sites'), msg = $('.q-msg');
@@ -96,9 +97,10 @@
       var list = sitesEl.querySelectorAll('.q-site');
       list.forEach(function (s, i) {
         s.querySelector('.q-site-no').textContent = '사업장 ' + (i + 1);
-        s.querySelector('[data-act="del-site"]').hidden = list.length < 2;
+        s.querySelector('[data-act="del-site"]').hidden = mode === 'new' && list.length < 2;
         s.querySelector('[data-act="add-site"]').hidden = i !== list.length - 1;
       });
+      $('.q-nosite').hidden = list.length > 0;
     }
     function renderFiles(s) {
       var ul = s.querySelector('.q-files');
@@ -128,7 +130,19 @@
       var b = e.target.closest('[data-act]'); if (!b) return;
       var act = b.getAttribute('data-act'), s = b.closest('.q-site');
       if (act === 'add-site') { var n = addSite(); n.scrollIntoView({ block: 'center', behavior: 'smooth' }); field('site_name', n).focus({ preventScroll: true }); }
-      else if (act === 'del-site') { if (sitesEl.children.length > 1 && confirm('이 사업장을 삭제할까요? (저장하기 전까지는 확정되지 않습니다)')) { s.remove(); renumber(); } }
+      else if (act === 'del-site') {
+        if (s._id && opt.onDeleteSite) {
+          if (!confirm('이 사업장과 첨부파일 정보를 삭제할까요?\n삭제하면 복구할 수 없습니다.')) return;
+          b.disabled = true;
+          opt.onDeleteSite(s._id).then(function () {
+            s.remove(); renumber(); say('사업장이 삭제되었습니다.', true);
+            if (opt.onSitesChange) opt.onSitesChange();
+          }).catch(function (er) { b.disabled = false; say(er.message); });
+        } else if (mode !== 'new' || sitesEl.children.length > 1) {
+          if (s._id && !confirm('이 사업장을 삭제할까요? (저장하면 확정됩니다)')) return;
+          s.remove(); renumber(); if (opt.onSitesChange) opt.onSitesChange();
+        }
+      }
       else if (act === 'pick') s.querySelector('input[type=file]').click();
       else if (act === 'rm-file') { s._files.splice(+b.getAttribute('data-i'), 1); renderFiles(s); }
       else if (act === 'addr') openAddr();
@@ -178,7 +192,8 @@
       ['name', 'zipcode', 'address', 'address_detail'].forEach(function (n) { field(n).value = data[n] || ''; });
       field('biz_no').value = C.fmtBiz(data.biz_no); field('phone').value = C.fmtPhone(data.phone); field('fax').value = C.fmtPhone(data.fax);
       bizCheck();
-      (data.sites && data.sites.length ? data.sites : [null]).forEach(function (s) { addSite(s); });
+      if (data.id) (data.sites || []).forEach(function (s) { addSite(s); }); else addSite();
+      renumber();
     } else addSite();
 
     /* ---- 검증 + 파일 업로드 → 서버로 보낼 payload ---- */
@@ -186,9 +201,9 @@
       var v = function (n, t, root) { var i = field(n, root); if (!i.value.trim()) fail(t, i); return i.value.trim(); };
       v('name', '의뢰회사명을 입력하세요.');
       var pwEl = field('password'), pw = pwEl ? pwEl.value : '', pw2El = field('password2'), pw2 = pw2El ? pw2El.value : '';
-      if (mode === 'new') {
+      if (mode === 'new' && pwEl) {
         if (pw.length < 4) { var pe = new Error('비밀번호는 4자 이상 입력하세요.'); pe.input = pwEl; pe.inline = true; throw pe; }
-      } else if (pw || pw2) {
+      } else if (mode !== 'new' && (pw || pw2)) {
         if (pw.length < 4) fail('비밀번호는 4자 이상 입력하세요.', pwEl);
         if (pw !== pw2) fail('비밀번호 확인이 일치하지 않습니다.', pw2El);
       }
@@ -197,7 +212,7 @@
       v('phone', '회사 전화번호를 입력하세요.');
       if (C.digits(field('phone').value).length < 8) fail('회사 전화번호를 끝까지 입력하세요.', field('phone'));
       var sites = sitesEl.querySelectorAll('.q-site');
-      if (!sites.length) fail('사업장을 1개 이상 입력하세요.');
+      if (!sites.length && mode === 'new') fail('사업장을 1개 이상 입력하세요.');
       sites.forEach(function (s, i) {
         var tag = '사업장 ' + (i + 1) + ' — ';
         v('site_name', tag + '사업장명을 입력하세요.', s); v('manager', tag + '담당자를 입력하세요.', s);
@@ -236,7 +251,7 @@
             };
           })
         };
-        if (pwEl2 && pwEl2.value) out.password = pwEl2.value;
+        if (opt.pw) out.password = opt.pw; else if (pwEl2 && pwEl2.value) out.password = pwEl2.value;
         return out;
       });
     }
@@ -244,7 +259,8 @@
       var s = Array.prototype.filter.call(sitesEl.querySelectorAll('.q-site'), function (x) { return x._id === id; })[0];
       if (s) s.scrollIntoView({ block: 'center' });
     }
-    return { el: form, say: say, payload: payload, focusSite: focusSite, actions: form.querySelector('.q-leg-act') };
+    function savedSites() { return Array.prototype.filter.call(sitesEl.querySelectorAll('.q-site'), function (x) { return x._id; }).length; }
+    return { el: form, say: say, payload: payload, focusSite: focusSite, savedSites: savedSites, actions: form.querySelector('.q-leg-act') };
   }
 
   window.CheumForm = { create: create };
