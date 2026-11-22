@@ -5,5 +5,5 @@
 */
 window.CHEUM_SUPABASE = {
   url: 'https://qtbpbsmxvtisqwvdqddp.supabase.co',
-  anonKey: ''
+  anonKey: 'sb_publishable_DeCc9KXSIiZ-yJLhVWWsAA_70IpIEE4'
 };
