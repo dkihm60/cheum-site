@@ -5,6 +5,13 @@
   var BASE = String(cfg.url || '').replace(/\/+$/, '');
   var KEY = cfg.anonKey || '';
   var BUCKET = 'quote-files';
+  /* 새 Publishable 키(sb_publishable_…)는 apikey 헤더로만 보내고, 예전 JWT형 anon 키는 Authorization 에도 보냅니다 */
+  function hdr(extra) {
+    var h = { apikey: KEY };
+    if (/^eyJ/.test(KEY)) h.Authorization = 'Bearer ' + KEY;
+    for (var k in extra) h[k] = extra[k];
+    return h;
+  }
   var MAX_MB = 10;
   var EXT_OK = ['pdf', 'jpg', 'jpeg', 'png', 'gif', 'zip', 'xls', 'xlsx', 'doc', 'docx', 'hwp', 'hwpx', 'ppt', 'pptx', 'dwg', 'dxf', 'txt'];
   var MSG = {
@@ -37,7 +44,7 @@
     if (!BASE || !KEY) return Promise.reject(new Error('서비스 연결 설정이 아직 되어 있지 않습니다.'));
     return fetch(BASE + '/rest/v1/rpc/' + fn, {
       method: 'POST',
-      headers: { apikey: KEY, Authorization: 'Bearer ' + KEY, 'Content-Type': 'application/json' },
+      headers: hdr({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(args || {})
     }).then(function (res) {
       return res.text().then(function (t) {
@@ -63,7 +70,7 @@
     var path = uuid() + '/' + uuid().replace(/-/g, '').slice(0, 16) + '.' + extOf(file.name);
     return fetch(BASE + '/storage/v1/object/' + BUCKET + '/' + path, {
       method: 'POST',
-      headers: { apikey: KEY, Authorization: 'Bearer ' + KEY, 'Content-Type': file.type || 'application/octet-stream', 'x-upsert': 'false' },
+      headers: hdr({ 'Content-Type': file.type || 'application/octet-stream', 'x-upsert': 'false' }),
       body: file
     }).then(function (res) {
       if (!res.ok) throw new Error('"' + file.name + '" 업로드에 실패했습니다.');
