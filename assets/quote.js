@@ -40,7 +40,7 @@
     newForm.say('');
     newForm.payload(function (t) { newForm.say(t, true); }).then(function (p) {
       return C.rpc('register_company', { p: p }).then(function (r) {
-        $('#doneId').textContent = C.fmtBiz(r.username); $('#donePw').textContent = r.password || '';
+        $('#doneId').textContent = C.fmtBiz(r.username);
         $('#newCard').hidden = true; $('#newDone').hidden = false; window.scrollTo({ top: 0, behavior: 'smooth' });
       });
     }).catch(function (e) { if (!e.input) newForm.say(e.message); })
@@ -51,12 +51,6 @@
     $('#newCard').hidden = false; $('#newDone').hidden = true;
   });
   $('#doneEdit').addEventListener('click', function () { show('edit'); });
-  $('#copyPw').addEventListener('click', function () {
-    var t = $('#donePw').textContent, b = this;
-    function ok() { b.textContent = '복사됨'; setTimeout(function () { b.textContent = '복사'; }, 1500); }
-    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(ok, function () { alert('비밀번호: ' + t); });
-    else alert('비밀번호: ' + t);
-  });
 
   function busy(b, on, label) { b.disabled = on; b.textContent = label; }
 

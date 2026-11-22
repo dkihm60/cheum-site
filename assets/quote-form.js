@@ -27,7 +27,13 @@
     var isNew = mode === 'new';
     return '<form class="q-form" novalidate autocomplete="off">' +
       '<fieldset class="q-sec q-co"><legend><span class="q-no">1</span>의뢰회사 정보<span class="q-leg-act"></span></legend>' +
-      '<div class="q-grid q-g1"><div class="q-f"><label for="qf-name">의뢰회사명 <i>*</i></label><input id="qf-name" name="name" maxlength="100" autocomplete="organization"></div></div>' +
+      (isNew
+        ? '<div class="q-grid q-gn"><div class="q-f"><label for="qf-name">의뢰회사명 <i>*</i></label><input id="qf-name" name="name" maxlength="100" autocomplete="organization"></div>' +
+          '<div class="q-f q-pwf"><label for="qf-pw">비밀번호 <i>*</i></label><div class="q-inline">' +
+          '<input id="qf-pw" name="password" type="password" maxlength="64" autocomplete="new-password" placeholder="4자 이상">' +
+          '<button type="button" class="q-btn q-btn-line q-btn-sm2" data-act="pwshow" aria-pressed="false">보기</button>' +
+          '<em class="q-pwmsg" aria-live="polite">4자 이상 · 수정/삭제 시 로그인에 사용</em></div></div></div>'
+        : '<div class="q-grid q-g1"><div class="q-f"><label for="qf-name">의뢰회사명 <i>*</i></label><input id="qf-name" name="name" maxlength="100" autocomplete="organization"></div></div>') +
       '<div class="q-grid q-g3">' +
       '<div class="q-f"><label for="qf-biz">사업자등록번호 <i>*</i></label>' +
       '<input id="qf-biz" name="biz_no" inputmode="numeric" maxlength="12" placeholder="000-00-00000">' +
@@ -126,6 +132,10 @@
       else if (act === 'pick') s.querySelector('input[type=file]').click();
       else if (act === 'rm-file') { s._files.splice(+b.getAttribute('data-i'), 1); renderFiles(s); }
       else if (act === 'addr') openAddr();
+      else if (act === 'pwshow') {
+        var pi = field('password'), on = pi.type === 'password';
+        pi.type = on ? 'text' : 'password'; b.textContent = on ? '숨김' : '보기'; b.setAttribute('aria-pressed', on);
+      }
     });
     form.addEventListener('change', function (e) {
       if (e.target.type !== 'file') return;
@@ -135,7 +145,10 @@
       });
       e.target.value = ''; renderFiles(s); say(errs.join('\n'));
     });
+    var pwm = $('.q-pwmsg'), pwHint = pwm ? pwm.textContent : '';
+    function pwSay(t) { if (pwm) { pwm.textContent = t || pwHint; pwm.className = 'q-pwmsg' + (t ? ' err' : ''); } }
     form.addEventListener('input', function (e) {
+      if (e.target.name === 'password') pwSay('');
       if (e.target.getAttribute('aria-invalid') === 'true' && e.target !== biz) e.target.removeAttribute('aria-invalid');
     });
     form.addEventListener('focusout', function (e) {
@@ -172,15 +185,17 @@
     function validate() {
       var v = function (n, t, root) { var i = field(n, root); if (!i.value.trim()) fail(t, i); return i.value.trim(); };
       v('name', '의뢰회사명을 입력하세요.');
+      var pwEl = field('password'), pw = pwEl ? pwEl.value : '', pw2El = field('password2'), pw2 = pw2El ? pw2El.value : '';
+      if (mode === 'new') {
+        if (pw.length < 4) { var pe = new Error('비밀번호는 4자 이상 입력하세요.'); pe.input = pwEl; pe.inline = true; throw pe; }
+      } else if (pw || pw2) {
+        if (pw.length < 4) fail('비밀번호는 4자 이상 입력하세요.', pwEl);
+        if (pw !== pw2) fail('비밀번호 확인이 일치하지 않습니다.', pw2El);
+      }
       if (!C.validBiz(biz.value)) fail('사업자등록번호가 올바르지 않습니다. 번호를 다시 확인해 주세요.', biz);
       v('address', '‘주소 검색’으로 주소를 입력하세요.', null);
       v('phone', '회사 전화번호를 입력하세요.');
       if (C.digits(field('phone').value).length < 8) fail('회사 전화번호를 끝까지 입력하세요.', field('phone'));
-      var pwEl = field('password'), pw = pwEl ? pwEl.value : '', pw2 = pwEl ? field('password2').value : '';
-      if (pw || pw2) {
-        if (pw.length < 4) fail('비밀번호는 4자 이상 입력하세요.', field('password'));
-        if (pw !== pw2) fail('비밀번호 확인이 일치하지 않습니다.', field('password2'));
-      }
       var sites = sitesEl.querySelectorAll('.q-site');
       if (!sites.length) fail('사업장을 1개 이상 입력하세요.');
       sites.forEach(function (s, i) {
@@ -193,7 +208,8 @@
     function payload(onProgress) {
       try { validate(); } catch (err) {
         if (err.input) { err.input.setAttribute('aria-invalid', 'true'); err.input.scrollIntoView({ block: 'center', behavior: 'smooth' }); err.input.focus({ preventScroll: true }); }
-        say(err.message); return Promise.reject(err);
+        if (err.inline) { pwSay(err.message); say(''); } else say(err.message);
+        return Promise.reject(err);
       }
       var pend = [];
       sitesEl.querySelectorAll('.q-site').forEach(function (s) { s._files.forEach(function (f) { if (f.file) pend.push(f); }); });
