@@ -1,4 +1,4 @@
-# 주식회사 채움 웹사이트 (주소: cheum56.com)
+# 주식회사 채움 웹사이트 (주소: www.cheum56.com)
 
 ## 내 PC에서 보기
 1. 압축을 풉니다.
@@ -20,8 +20,8 @@
 | `assets/app.js` | 실적 표·필터·갤러리·라이트박스 |
 | `assets/img/` | 지명원에서 추출한 사진, 약도 |
 
-## cheum56.com 연결
-- GitHub Pages 사용. 저장소 루트의 `CNAME` 파일에 `cheum56.com`이 들어 있습니다.
+## www.cheum56.com 연결
+- GitHub Pages 사용. 저장소 루트의 `CNAME` 파일에 `www.cheum56.com`이 들어 있습니다.
 - 가비아 DNS: `A @` 4개(185.199.108~111.153), `CNAME www → <계정>.github.io`
 - Settings → Pages에서 Enforce HTTPS를 켭니다.
 
