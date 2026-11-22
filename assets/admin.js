@@ -4,7 +4,7 @@
   var C = window.Cheum, F = window.CheumForm, esc = C.esc;
   var app = document.getElementById('app');
   var SCOPE = 'admin';
-  var BUILD = '2026-11-22 c · 한글 검색 수정판';
+  var BUILD = '2026-11-22 d · 업체별 조회 자동 표시';
   var S = { tab: 'co', view: 'all', q: '', sel: '', companies: [], users: [], me: '' };
 
   function tok() { return C.token(SCOPE); }
@@ -86,21 +86,25 @@
        한글은 조합(composition)이 끝난 뒤에 검색한다. */
     var s = body.querySelector('#srch'), composing = false;
     s.addEventListener('compositionstart', function () { composing = true; });
-    s.addEventListener('compositionend', function () { composing = false; S.q = s.value; refreshList(); });
-    s.addEventListener('input', function (e) { if (composing || e.isComposing) return; S.q = s.value; refreshList(); });
+    s.addEventListener('compositionend', function () { composing = false; S.q = s.value; refreshList(true); });
+    s.addEventListener('input', function (e) { if (composing || e.isComposing) return; S.q = s.value; refreshList(true); });
     var pick = body.querySelector('#pick');
-    if (pick) pick.addEventListener('change', function () { S.sel = pick.value; refreshList(true); });
+    if (pick) pick.addEventListener('change', function () { S.sel = pick.value; refreshList(); });
     body.querySelector('[data-act="new"]').addEventListener('click', function () { companyDialog(); });
     refreshList();
   }
 
   /* 조회 조건에 맞게 건수·업체 선택목록·결과표만 갱신 (검색칸은 그대로 둠) */
-  function refreshList(keepPick) {
+  function refreshList(fromSearch) {
     var body = document.getElementById('body'); if (!body || S.tab !== 'co') return;
     var list = S.companies.filter(match);
+    if (S.view === 'one') {
+      if (list.length === 1) S.sel = list[0].id;                                         // 1건이면 바로 상세 표시
+      else if (fromSearch || !list.some(function (x) { return x.id === S.sel; })) S.sel = '';   // 검색어를 바꾸면 선택 해제
+    }
     var cnt = body.querySelector('#cnt'); if (cnt) cnt.textContent = list.length + '건';
     var pick = body.querySelector('#pick');
-    if (pick && !keepPick) {
+    if (pick) {
       pick.innerHTML = '<option value="">— 업체 선택 —</option>' + list.map(function (c) {
         return '<option value="' + c.id + '"' + (c.id === S.sel ? ' selected' : '') + '>' + esc(c.name) + ' (' + C.fmtBiz(c.biz_no) + ')</option>';
       }).join('');
@@ -118,7 +122,18 @@
     var res = body.querySelector('#res');
     if (S.view === 'one') {
       var c = S.companies.filter(function (x) { return x.id === S.sel; })[0];
-      if (!c) { res.innerHTML = '<div class="q-card q-empty">위에서 업체를 선택하세요.</div>'; return; }
+      if (!c) {
+        if (!list.length) { res.innerHTML = '<div class="q-card q-empty">조회된 업체가 없습니다.</div>'; return; }
+        res.innerHTML = '<div class="q-card"><p class="q-hint" style="margin:0 0 10px"><b>' + list.length + '건</b>이 조회되었습니다. 업체를 선택하세요.</p><ul class="q-list">' +
+          list.map(function (x) {
+            return '<li><b>' + esc(x.name) + '</b><span class="num">' + C.fmtBiz(x.biz_no) + ' · ' + esc(x.phone) + ' · ' + esc(cut20(addr(x))) + '</span>' +
+              '<button type="button" class="q-btn q-btn-line q-btn-sm" data-pick="' + x.id + '">선택</button></li>';
+          }).join('') + '</ul></div>';
+        res.querySelectorAll('[data-pick]').forEach(function (b) {
+          b.addEventListener('click', function () { S.sel = b.getAttribute('data-pick'); refreshList(); });
+        });
+        return;
+      }
       res.innerHTML = '<div class="q-card q-detail"><div class="q-sub"><h2>' + esc(c.name) + '</h2>' +
         '<span class="q-who"><button class="q-btn q-btn-sm" data-detail="' + c.id + '">상세조회</button></span></div>' +
         '<dl class="q-dl"><dt>사업자번호</dt><dd class="num">' + C.fmtBiz(c.biz_no) + '</dd><dt>전화번호</dt><dd class="num">' + esc(c.phone) + '</dd>' +
