@@ -36,6 +36,7 @@
     <button role="tab" id="tab-new" aria-selected="true" aria-controls="pane-new" data-tab="new">신규등록</button>
     <button role="tab" id="tab-edit" aria-selected="false" aria-controls="pane-edit" data-tab="edit" tabindex="-1">수정</button>
     <button role="tab" id="tab-del" aria-selected="false" aria-controls="pane-del" data-tab="del" tabindex="-1">삭제</button>
+    <div class="q-auth" id="authSlot" hidden></div>
   </div>
 
   <!-- 신규등록 -->
@@ -43,8 +44,12 @@
     <div class="q-card" id="newCard"><div id="newHost"></div></div>
     <div class="q-card q-done" id="newDone" hidden>
       <h2>견적의뢰가 등록되었습니다.</h2>
-      <p>수정·삭제할 때는 아래 아이디(사업자등록번호)와 설정하신 비밀번호로 로그인하세요.</p>
-      <div class="q-id" id="doneId"></div>
+      <p>수정·삭제할 때는 아래 <b>아이디와 비밀번호</b>로 로그인하세요.</p>
+      <div class="q-cred">
+        <div><span>아이디 <small>(사업자등록번호)</small></span><b id="doneId"></b></div>
+        <div><span>비밀번호 <small>(자동 발급)</small></span><b id="donePw"></b><button type="button" class="q-btn q-btn-line q-btn-sm" id="copyPw">복사</button></div>
+      </div>
+      <p class="q-warn">⚠ 비밀번호는 <b>지금 이 화면에서만</b> 확인할 수 있습니다. 반드시 메모해 두세요.<br>분실 시 관리자(031-676-5611)에게 재설정을 요청하시고, 로그인 후 ‘수정’ 메뉴에서 변경할 수 있습니다.</p>
       <p><button type="button" class="q-btn" id="doneEdit">등록 내용 확인·수정</button> <button type="button" class="q-btn q-btn-line" id="doneAgain">새로 등록하기</button></p>
     </div>
   </section>

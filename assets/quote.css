@@ -13,9 +13,17 @@ body.q-body{background:var(--mist);min-height:100vh}
 
 /* 탭 */
 .q-tabs{display:flex;gap:0;border-bottom:2px solid var(--ink);margin-bottom:16px;flex-wrap:wrap}
-.q-tabs button{padding:10px 24px;font-weight:700;font-size:16px;color:var(--mute);border:1px solid transparent;border-bottom:0;margin-bottom:-2px;background:transparent}
-.q-tabs button[aria-selected="true"]{background:var(--ink);color:#fff}
-.q-tabs button:hover:not([aria-selected="true"]){color:var(--ink)}
+.q-tabs>[role=tab]{padding:10px 24px;font-weight:700;font-size:16px;color:var(--mute);border:1px solid transparent;border-bottom:0;margin-bottom:-2px;background:transparent}
+.q-tabs>[role=tab][aria-selected="true"]{background:var(--ink);color:#fff}
+.q-tabs>[role=tab]:hover:not([aria-selected="true"]){color:var(--ink)}
+.q-auth{margin-left:auto;display:flex;align-items:center;gap:8px;padding:0 0 6px 16px;font-size:14px}
+.q-login-inline{display:flex;gap:6px;align-items:center}
+.q-login-inline input{height:34px;padding:0 10px;border:1px solid #CFCACA;border-radius:2px;font:inherit;font-size:14px;width:190px;background:#fff}
+.q-login-inline input[type=password]{width:130px}
+.q-login-inline .q-btn{flex:none}
+.q-login-inline input:focus{outline:2px solid var(--red);outline-offset:-1px;border-color:var(--red)}
+.q-auth .q-who{color:var(--ink-2)}
+.q-empty small{color:var(--mute)}
 .q-sub{display:flex;gap:8px;align-items:center;margin:0 0 16px;flex-wrap:wrap}
 .q-sub .q-who{margin-left:auto;font-size:14px;color:var(--ink-2)}
 
@@ -91,6 +99,13 @@ body.q-body{background:var(--mist);min-height:100vh}
 .q-done h2{font-size:24px;margin-bottom:10px}
 .q-done p{color:var(--ink-2);margin-bottom:6px}
 .q-done .q-id{display:inline-block;margin:12px 0;padding:10px 20px;background:var(--mist);font-family:var(--f-lat);font-size:22px;font-weight:700;letter-spacing:.05em}
+.q-cred{display:inline-grid;gap:8px;margin:14px 0 4px;text-align:left}
+.q-cred>div{display:flex;align-items:center;gap:14px;background:var(--mist);padding:10px 16px}
+.q-cred span{min-width:150px;font-size:14px;font-weight:700}
+.q-cred span small{font-weight:400;color:var(--mute)}
+.q-cred b{font-family:var(--f-lat);font-size:22px;letter-spacing:.06em}
+.q-cred .q-btn{margin-left:auto}
+.q-warn{margin:12px auto 18px;max-width:620px;background:#FFF7E6;border:1px solid #F1D79A;padding:10px 14px;font-size:14px;color:var(--ink-2)}
 .q-danger{border-top:3px solid var(--ink);margin-top:20px}
 .q-list{list-style:none;margin:0;padding:0;display:grid;gap:8px}
 .q-list li{display:flex;gap:12px;align-items:center;border:1px solid var(--line);padding:12px 16px;flex-wrap:wrap}
@@ -138,11 +153,18 @@ dialog.q-dlg::backdrop{background:rgba(20,18,18,.6)}
   .q-card{padding:18px}
   .q-grid,.q-g3,.q-gs{grid-template-columns:1fr}
   .q-hint{padding-bottom:0}
+  .q-cred{display:grid}
+  .q-cred>div{flex-wrap:wrap}
+  .q-cred span{min-width:0;flex-basis:100%}
   .q-leg-act{padding-left:10px}
   .q-leg-act .q-btn{padding:0 12px;font-size:14px}
   .q-sec{padding:14px 14px 12px}
   .q-site{padding:10px 12px 12px}
-  .q-tabs button{flex:1;padding:12px 8px;font-size:15px}
+  .q-tabs>[role=tab]{flex:1;padding:12px 8px;font-size:15px}
+  .q-auth{flex-basis:100%;margin:0;padding:8px 0 8px;justify-content:space-between}
+  .q-login-inline{width:100%}
+  .q-auth,.q-login-inline{min-width:0}
+  .q-login-inline input{flex:1 1 0;min-width:0;width:0!important}
   .q-actions .q-btn{flex:1}
   .q-dl{grid-template-columns:100px 1fr}
   .q-hd-title{display:none}

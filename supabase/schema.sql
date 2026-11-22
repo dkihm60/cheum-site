@@ -97,6 +97,13 @@ begin
   return ((10 - (s % 10)) % 10) = substr(d, 10, 1)::int;
 end $$;
 
+-- 업체 계정 초기 비밀번호 자동 발급 (0/O, 1/I 등 헷갈리는 문자 제외 · 8자리)
+create or replace function public._gen_pw() returns text
+language sql volatile set search_path = public, extensions as $$
+  select string_agg(substr('ABCDEFGHJKLMNPQRSTUVWXYZ23456789', 1 + (get_byte(gen_random_bytes(1), 0) % 32), 1), '')
+    from generate_series(1, 8)
+$$;
+
 create or replace function public._auth(p_token uuid) returns public.app_users
 language plpgsql security definer set search_path = public, extensions as $$
 declare u public.app_users;
@@ -245,9 +252,10 @@ language plpgsql security definer set search_path = public, extensions as $$
 declare
   cid uuid;
   biz text := public._digits(p->>'biz_no');
-  pw text := p->>'password';
+  pw text := nullif(p->>'password', '');
 begin
-  if coalesce(length(pw), 0) < 4 then raise exception 'ERR:비밀번호는 4자 이상 입력하세요.'; end if;
+  if pw is null then pw := public._gen_pw();           -- 입력이 없으면 자동 발급
+  elsif length(pw) < 4 then raise exception 'ERR:비밀번호는 4자 이상 입력하세요.'; end if;
   if jsonb_array_length(coalesce(p->'sites', '[]'::jsonb)) < 1 then
     raise exception 'ERR:사업장을 1개 이상 입력하세요.';
   end if;
@@ -257,7 +265,7 @@ begin
   cid := public._save_company(null, p);
   insert into public.app_users(username, pass_hash, role, company_id)
   values (biz, crypt(pw, gen_salt('bf')), 'customer', cid);
-  return jsonb_build_object('ok', true, 'company_id', cid, 'username', biz);
+  return jsonb_build_object('ok', true, 'company_id', cid, 'username', biz, 'password', pw);
 end $$;
 
 -- ---------------------------------------------------------------- 로그인 후 RPC
@@ -285,14 +293,14 @@ begin
   if u.role = 'admin' then
     cid := nullif(p->>'id', '')::uuid;
     if cid is null then                               -- 관리자 신규등록
-      if pw is null then raise exception 'ERR:비밀번호는 4자 이상 입력하세요.'; end if;
+      if pw is null then pw := public._gen_pw(); end if;
       if exists (select 1 from public.app_users where username = biz) then
         raise exception 'ERR:이미 등록된 사업자등록번호입니다.';
       end if;
       cid := public._save_company(null, p);
       insert into public.app_users(username, pass_hash, role, company_id)
       values (biz, crypt(pw, gen_salt('bf')), 'customer', cid);
-      return jsonb_build_object('ok', true, 'company_id', cid);
+      return jsonb_build_object('ok', true, 'company_id', cid, 'username', biz, 'password', pw);
     end if;
   else
     cid := u.company_id;
@@ -428,7 +436,7 @@ end $$;
 
 -- ---------------------------------------------------------------- 권한
 revoke execute on function public._digits(text), public._valid_biz(text), public._auth(uuid),
-  public._admin(uuid), public._company_json(uuid), public._save_company(uuid, jsonb)
+  public._admin(uuid), public._company_json(uuid), public._save_company(uuid, jsonb), public._gen_pw()
   from public, anon, authenticated;
 
 grant execute on function

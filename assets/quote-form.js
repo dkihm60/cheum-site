@@ -39,11 +39,13 @@
       '<div class="q-inline"><input name="zipcode" class="q-zip" readonly placeholder="우편번호" aria-label="우편번호"><button type="button" class="q-btn q-btn-sm2" data-act="addr">주소 검색</button>' +
       '<input name="address" readonly placeholder="‘주소 검색’을 눌러 주소를 선택하세요" aria-label="주소"></div>' +
       '<input name="address_detail" maxlength="100" placeholder="상세주소 (동·호수, 층 등)" aria-label="상세주소"></div>' +
-      '<div class="q-sub-hd">' + (isNew ? '로그인 정보' : '비밀번호 변경') + '</div>' +
+      (isNew ? '' :
+      '<div class="q-sub-hd">비밀번호 변경</div>' +
       '<div class="q-grid q-g3">' +
-      '<div class="q-f"><label for="qf-pw">' + (isNew ? '비밀번호 <i>*</i>' : '새 비밀번호') + '</label><input id="qf-pw" name="password" type="password" maxlength="64" autocomplete="new-password" placeholder="4자 이상"></div>' +
-      '<div class="q-f"><label for="qf-pw2">비밀번호 확인' + (isNew ? ' <i>*</i>' : '') + '</label><input id="qf-pw2" name="password2" type="password" maxlength="64" autocomplete="new-password"></div>' +
-      '<p class="q-hint">' + (isNew ? '<b>사업자등록번호가 아이디</b>가 되며, 수정·삭제 시 이 비밀번호로 로그인합니다.' : '바꿀 때만 입력하세요. 비워 두면 유지됩니다.') + '</p>' +
+      '<div class="q-f"><label for="qf-pw">새 비밀번호</label><input id="qf-pw" name="password" type="password" maxlength="64" autocomplete="new-password" placeholder="4자 이상"></div>' +
+      '<div class="q-f"><label for="qf-pw2">새 비밀번호 확인</label><input id="qf-pw2" name="password2" type="password" maxlength="64" autocomplete="new-password"></div>' +
+      '<p class="q-hint">바꿀 때만 입력하세요. 비워 두면 유지됩니다.</p>' +
+      '</div>') +
       '</div></fieldset>' +
 
       '<fieldset class="q-sec q-st"><legend><span class="q-no">2</span>사업장 정보 <small>한 회사에 여러 사업장을 등록할 수 있습니다</small></legend>' +
@@ -174,8 +176,8 @@
       v('address', '‘주소 검색’으로 주소를 입력하세요.', null);
       v('phone', '회사 전화번호를 입력하세요.');
       if (C.digits(field('phone').value).length < 8) fail('회사 전화번호를 끝까지 입력하세요.', field('phone'));
-      var pw = field('password').value, pw2 = field('password2').value;
-      if (mode === 'new' || pw || pw2) {
+      var pwEl = field('password'), pw = pwEl ? pwEl.value : '', pw2 = pwEl ? field('password2').value : '';
+      if (pw || pw2) {
         if (pw.length < 4) fail('비밀번호는 4자 이상 입력하세요.', field('password'));
         if (pw !== pw2) fail('비밀번호 확인이 일치하지 않습니다.', field('password2'));
       }
@@ -203,6 +205,7 @@
         });
       }, Promise.resolve());
       return chain.then(function () {
+        var pwEl2 = field('password');
         var out = {
           id: data && data.id || null,
           name: field('name').value.trim(), biz_no: C.digits(biz.value),
@@ -217,7 +220,7 @@
             };
           })
         };
-        if (field('password').value) out.password = field('password').value;
+        if (pwEl2 && pwEl2.value) out.password = pwEl2.value;
         return out;
       });
     }

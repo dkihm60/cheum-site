@@ -167,7 +167,11 @@
     b.addEventListener('click', function () {
       b.disabled = true; form.say('');
       form.payload(function (t) { form.say(t, true); }).then(function (p) { return call('save_company', { p: p }); })
-        .then(function () { dlg.d.close(); return refresh(); })
+        .then(function (r) {
+          dlg.d.close();
+          if (!c && r && r.password) alert('업체가 등록되었습니다.\n\n로그인 아이디: ' + C.fmtBiz(r.username) + '\n자동 발급 비밀번호: ' + r.password + '\n\n이 비밀번호는 지금만 확인할 수 있으니 업체에 전달해 주세요.');
+          return refresh();
+        })
         .catch(function (e) { if (!e.input) form.say(e.message); b.disabled = false; });
     });
   }
