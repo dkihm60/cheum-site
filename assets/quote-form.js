@@ -4,6 +4,9 @@
   var C = window.Cheum;
   var seq = 0;
 
+  /* 파일명은 20자까지만 표시하고 넘으면 ... 로 줄임(전체 이름은 마우스를 올리면 표시) */
+  function shortName(n) { n = String(n || ''); return n.length > 20 ? n.slice(0, 20) + '...' : n; }
+
   function el(html) { var d = document.createElement('div'); d.innerHTML = html.trim(); return d.firstChild; }
 
   function siteTpl(id) {
@@ -13,13 +16,13 @@
       '<button type="button" class="q-link q-del" data-act="del-site">삭제</button></span></div>' +
       '<div class="q-grid q-gs">' +
       '<div class="q-f"><label for="sn' + id + '">사업장명 <i>*</i></label><input id="sn' + id + '" name="site_name" maxlength="100" placeholder="예: OO아파트 신축현장"></div>' +
+      '<div class="q-f q-fcell"><span class="q-lbl">첨부된 파일 <small class="q-fcount"></small></span><ul class="q-files" aria-label="첨부된 파일"></ul></div>' +
       '<div class="q-f"><label for="sm' + id + '">담당자 <i>*</i></label><input id="sm' + id + '" name="manager" maxlength="50" autocomplete="off"></div>' +
-      '<div class="q-f"><label for="sc' + id + '">담당자 연락처 <i>*</i></label><input id="sc' + id + '" name="contact" inputmode="tel" maxlength="14" placeholder="010-0000-0000" autocomplete="off"></div>' +
+      '<div class="q-f"><label for="sc' + id + '">연락처 <i>*</i></label><input id="sc' + id + '" name="contact" inputmode="tel" maxlength="14" placeholder="010-0000-0000" autocomplete="off"></div>' +
       '</div>' +
       '<div class="q-files-box"><div class="q-fr"><span class="q-lbl">첨부파일</span>' +
       '<button type="button" class="q-btn q-btn-line q-btn-sm" data-act="pick">+ 파일 선택</button><input type="file" multiple hidden>' +
-      '<small>도면·견적요청서 등 · pdf, 이미지, hwp, doc, xls, dwg 등 · 파일당 ' + C.MAX_MB + 'MB 이하</small></div>' +
-      '<ul class="q-files"></ul></div>' +
+      '<small>도면·견적요청서 등 · pdf, 이미지, hwp, doc, xls, dwg 등 · 파일당 ' + C.MAX_MB + 'MB 이하</small></div></div>' +
       '</section>';
   }
 
@@ -105,12 +108,14 @@
     function renderFiles(s) {
       var ul = s.querySelector('.q-files');
       ul.innerHTML = s._files.map(function (f, i) {
+        var full = f.file_path ? f.file_name : f.file.name;
         var name = f.file_path
-          ? '<a href="' + C.esc(C.fileUrl(f.file_path)) + '" target="_blank" rel="noopener">' + C.esc(f.file_name) + '</a>'
-          : '<span>' + C.esc(f.file.name) + '</span> <small>(등록 시 업로드)</small>';
+          ? '<a href="' + C.esc(C.fileUrl(f.file_path)) + '" target="_blank" rel="noopener" title="' + C.esc(full) + '">' + C.esc(shortName(full)) + '</a>'
+          : '<span title="' + C.esc(full) + '">' + C.esc(shortName(full)) + '</span> <small class="q-pend">(등록 시 업로드)</small>';
         return '<li>' + name + ' <small>' + C.size(f.file_size != null ? f.file_size : f.file.size) + '</small>' +
           '<button type="button" class="q-link q-del" data-act="rm-file" data-i="' + i + '" aria-label="파일 제거">제거</button></li>';
       }).join('');
+      s.querySelector('.q-fcount').textContent = s._files.length ? '(' + s._files.length + ')' : '';
     }
     function addSite(d) {
       var s = el(siteTpl(++seq));
