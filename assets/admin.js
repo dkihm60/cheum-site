@@ -164,7 +164,7 @@
     var form = F.create(dlg.bd.querySelector('.q-eh'), { mode: c ? 'edit' : 'new', data: c,
       onDeleteSite: function (id) { return call('delete_site', { p_site_id: id }); },
       onChangePassword: function (pw) { return call('set_company_password', { p_company_id: c && c.id, p_new: pw }); } });
-    form.actions.innerHTML = '<button type="button" class="q-btn q-btn-line" data-x2>취소</button><button type="button" class="q-btn q-btn-red" data-save>' + (c ? '저장' : '등록') + '</button>';
+    form.actions.innerHTML = '<button type="button" class="q-btn q-btn-line" data-x2>취소</button><button type="button" class="q-btn q-btn-red" data-save>' + (c ? '회사정보 수정' : '등록') + '</button>';
     if (c && siteId) setTimeout(function () { form.focusSite(siteId); }, 50);
     dlg.bd.querySelector('[data-x2]').addEventListener('click', function () { dlg.d.close(); });
     var b = dlg.bd.querySelector('[data-save]');

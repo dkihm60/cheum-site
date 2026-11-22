@@ -134,13 +134,13 @@
         onSitesChange: updateDel,
         onChangePassword: function (pw) { return C.rpc('set_company_password', { p_token: tok(), p_new: pw }).catch(function (e) { expired(e); throw e; }); }
       });
-      var btn = document.createElement('button'); btn.type = 'button'; btn.className = 'q-btn q-btn-red'; btn.textContent = '수정';
+      var btn = document.createElement('button'); btn.type = 'button'; btn.className = 'q-btn q-btn-red'; btn.textContent = '회사정보 수정';
       form.actions.appendChild(btn);
       btn.addEventListener('click', function () {
-        busy(btn, true, '저장 중…'); form.say('');
+        busy(btn, true, '수정 중…'); form.say('');
         form.payload(function (t) { form.say(t, true); }).then(function (p) {
-          return C.rpc('save_company', { p_token: tok(), p: p }).then(function () { return editor('저장되었습니다.'); });
-        }).catch(function (er) { if (!expired(er) && !er.input) form.say(er.message); busy(btn, false, '수정'); });
+          return C.rpc('save_company', { p_token: tok(), p: p }).then(function () { return editor('회사정보가 수정되었습니다.'); });
+        }).catch(function (er) { if (!expired(er) && !er.input) form.say(er.message); busy(btn, false, '회사정보 수정'); });
       });
       $('#delCo').addEventListener('click', function () {
         var m = $('#delMsg'); m.className = 'q-msg'; m.textContent = '';
