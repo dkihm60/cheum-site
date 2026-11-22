@@ -86,64 +86,50 @@
     s.addEventListener('input', function () { S.q = s.value; var pos = s.selectionStart; companyTab(body); var n = body.querySelector('#srch'); n.focus(); n.setSelectionRange(pos, pos); });
     var pick = body.querySelector('#pick');
     if (pick) pick.addEventListener('change', function () { S.sel = pick.value; drawResult(body, list); });
-    body.querySelector('[data-act="new"]').addEventListener('click', function () { companyDialog(null); });
+    body.querySelector('[data-act="new"]').addEventListener('click', function () { companyDialog(); });
     drawResult(body, list);
   }
 
   function filesHtml(files) {
     return files.length ? '<ul>' + files.map(function (f) { return '<li><a href="' + esc(C.fileUrl(f.file_path)) + '" target="_blank" rel="noopener">' + esc(f.file_name) + '</a></li>'; }).join('') + '</ul>' : '<span class="q-count">-</span>';
   }
+  /* 20자까지만 표시, 넘으면 ... (전체는 마우스를 올리면 표시) */
+  function cut20(t) { t = String(t || '').trim(); return t.length > 20 ? t.slice(0, 20) + '...' : t; }
+  function addr(c) { return (c.zipcode ? '(' + c.zipcode + ') ' : '') + c.address + ' ' + (c.address_detail || ''); }
   function drawResult(body, list) {
     var res = body.querySelector('#res');
     if (S.view === 'one') {
       var c = S.companies.filter(function (x) { return x.id === S.sel; })[0];
       if (!c) { res.innerHTML = '<div class="q-card q-empty">위에서 업체를 선택하세요.</div>'; return; }
       res.innerHTML = '<div class="q-card q-detail"><div class="q-sub"><h2>' + esc(c.name) + '</h2>' +
-        '<span class="q-who"><button class="q-btn q-btn-sm" data-edit="' + c.id + '">업체 수정</button> <button class="q-btn q-btn-line q-btn-sm" data-delco="' + c.id + '">업체 삭제</button></span></div>' +
+        '<span class="q-who"><button class="q-btn q-btn-sm" data-detail="' + c.id + '">상세조회</button></span></div>' +
         '<dl class="q-dl"><dt>사업자번호</dt><dd class="num">' + C.fmtBiz(c.biz_no) + '</dd><dt>전화번호</dt><dd class="num">' + esc(c.phone) + '</dd>' +
-        '<dt>FAX</dt><dd class="num">' + esc(c.fax || '-') + '</dd><dt>주소</dt><dd>' + esc((c.zipcode ? '(' + c.zipcode + ') ' : '') + c.address + ' ' + (c.address_detail || '')) + '</dd>' +
+        '<dt>FAX</dt><dd class="num">' + esc(c.fax || '-') + '</dd><dt>주소</dt><dd>' + esc(addr(c)) + '</dd>' +
         '<dt>로그인 아이디</dt><dd class="num">' + esc(c.username || '(계정 없음)') + '</dd></dl>' +
-        '<div class="q-tw"><table class="q-t" style="min-width:640px"><thead><tr><th>사업장명</th><th>담당자</th><th>연락처</th><th>파일</th><th>관리</th></tr></thead><tbody>' +
+        '<div class="q-tw"><table class="q-t" style="min-width:560px"><thead><tr><th>사업장명</th><th>담당자</th><th>연락처</th><th>파일</th></tr></thead><tbody>' +
         (c.sites.length ? c.sites.map(function (s) {
-          return '<tr><td>' + esc(s.site_name) + '</td><td>' + esc(s.manager) + '</td><td class="num">' + esc(s.contact) + '</td><td>' + filesHtml(s.files) + '</td>' +
-            '<td class="ops"><button class="q-btn q-btn-sm" data-edit="' + c.id + '" data-site="' + s.id + '">수정</button><button class="q-btn q-btn-line q-btn-sm" data-delsite="' + s.id + '">삭제</button></td></tr>';
-        }).join('') : '<tr><td colspan="5" class="q-empty">등록된 사업장이 없습니다.</td></tr>') + '</tbody></table></div></div>';
+          return '<tr><td>' + esc(s.site_name) + '</td><td>' + esc(s.manager) + '</td><td class="num">' + esc(s.contact) + '</td><td>' + filesHtml(s.files) + '</td></tr>';
+        }).join('') : '<tr><td colspan="4" class="q-empty">등록된 사업장이 없습니다.</td></tr>') + '</tbody></table></div></div>';
     } else {
-      res.innerHTML = list.length ? '<div class="q-tw"><table class="q-t"><thead><tr><th>회사명</th><th>사업자번호</th><th>전화번호</th><th>주소</th><th>사업장명</th><th>담당자</th><th>연락처</th><th>파일</th><th>관리</th></tr></thead><tbody>' +
+      res.innerHTML = list.length ? '<div class="q-tw"><table class="q-t"><thead><tr><th>회사명</th><th>사업자번호</th><th>전화번호</th><th>주소</th><th>사업장명</th><th>담당자</th><th>연락처</th><th>파일</th><th>상세조회</th></tr></thead><tbody>' +
         list.map(function (c) {
           var n = Math.max(c.sites.length, 1), rows = '';
           for (var i = 0; i < n; i++) {
             var s = c.sites[i];
             rows += '<tr' + (i === 0 ? ' class="co-first"' : '') + '>' +
               (i === 0 ? '<td class="co" rowspan="' + n + '"><b>' + esc(c.name) + '</b></td><td class="co num" rowspan="' + n + '">' + C.fmtBiz(c.biz_no) + '</td><td class="co num" rowspan="' + n + '">' + esc(c.phone) +
-                '</td><td class="co" rowspan="' + n + '">' + esc((c.zipcode ? '(' + c.zipcode + ') ' : '') + c.address + ' ' + (c.address_detail || '')) + '</td>' : '') +
-              (s ? '<td>' + esc(s.site_name) + '</td><td>' + esc(s.manager) + '</td><td class="num">' + esc(s.contact) + '</td><td>' + filesHtml(s.files) + '</td>' +
-                '<td class="ops"><button class="q-btn q-btn-sm" data-edit="' + c.id + '" data-site="' + s.id + '">수정</button><button class="q-btn q-btn-line q-btn-sm" data-delsite="' + s.id + '">삭제</button>' +
-                (i === 0 ? '<br><button class="q-btn q-btn-sm" style="margin-top:4px" data-edit="' + c.id + '">업체수정</button><button class="q-btn q-btn-line q-btn-sm" style="margin:4px 0 0 4px" data-delco="' + c.id + '">업체삭제</button>' : '') + '</td>'
-                : '<td colspan="4" class="q-count">사업장 없음</td><td class="ops"><button class="q-btn q-btn-sm" data-edit="' + c.id + '">업체수정</button><button class="q-btn q-btn-line q-btn-sm" data-delco="' + c.id + '">업체삭제</button></td>') + '</tr>';
+                '</td><td class="co" rowspan="' + n + '" title="' + esc(addr(c).trim()) + '">' + esc(cut20(addr(c))) + '</td>' : '') +
+              (s ? '<td>' + esc(s.site_name) + '</td><td>' + esc(s.manager) + '</td><td class="num">' + esc(s.contact) + '</td><td>' + filesHtml(s.files) + '</td>'
+                 : '<td colspan="4" class="q-count">사업장 없음</td>') +
+              (i === 0 ? '<td class="co ops" rowspan="' + n + '"><button class="q-btn q-btn-sm" data-detail="' + c.id + '">상세조회</button></td>' : '') + '</tr>';
           }
           return rows;
         }).join('') + '</tbody></table></div>' : '<div class="q-card q-empty">조회된 업체가 없습니다.</div>';
     }
-    res.querySelectorAll('[data-edit]').forEach(function (b) {
+    res.querySelectorAll('[data-detail]').forEach(function (b) {
       b.addEventListener('click', function () {
-        var c = S.companies.filter(function (x) { return x.id === b.getAttribute('data-edit'); })[0];
-        if (c) companyDialog(c, b.getAttribute('data-site'));
-      });
-    });
-    res.querySelectorAll('[data-delco]').forEach(function (b) {
-      b.addEventListener('click', function () {
-        var c = S.companies.filter(function (x) { return x.id === b.getAttribute('data-delco'); })[0];
-        if (!c) return;
-        if (c.sites.length) { alert('사업장 자료가 ' + c.sites.length + '건 남아 있습니다.\n사업장 자료를 먼저 모두 삭제한 뒤에 업체(회사정보)를 삭제할 수 있습니다.'); return; }
-        if (!confirm('‘' + c.name + '’ 업체를 삭제할까요?\n로그인 계정도 함께 삭제되며 복구할 수 없습니다.')) return;
-        call('delete_company', { p_id: c.id }).then(refresh).catch(function (e) { alert(e.message); });
-      });
-    });
-    res.querySelectorAll('[data-delsite]').forEach(function (b) {
-      b.addEventListener('click', function () {
-        if (!confirm('이 사업장을 삭제할까요? 복구할 수 없습니다.')) return;
-        call('delete_site', { p_site_id: b.getAttribute('data-delsite') }).then(refresh).catch(function (e) { alert(e.message); });
+        var c = S.companies.filter(function (x) { return x.id === b.getAttribute('data-detail'); })[0];
+        if (c) detailDialog(c);
       });
     });
   }
@@ -158,23 +144,76 @@
     d.showModal();
     return { d: d, bd: d.querySelector('.q-dlg-bd') };
   }
-  function companyDialog(c, siteId) {
-    var dlg = dialog(c ? '업체 수정 — ' + c.name : '업체 신규등록');
-    dlg.bd.innerHTML = '<div class="q-eh"></div>';
-    var form = F.create(dlg.bd.querySelector('.q-eh'), { mode: c ? 'edit' : 'new', data: c,
+  function reloadCompany(id) {
+    return Promise.all([call('list_companies'), call('list_users')]).then(function (r) {
+      S.companies = r[0]; S.users = r[1];
+      return S.companies.filter(function (x) { return x.id === id; })[0];
+    });
+  }
+  /* 상세조회: 업체가 직접 처리하는 화면과 동일(회사정보 수정, 사업장·첨부파일 추가·삭제, 비밀번호 변경, 회사정보 삭제) */
+  function detailDialog(c0, dlg0, note) {
+    var dlg = dlg0 || dialog('상세조회 — ' + c0.name), c = c0, form;
+    dlg.bd.innerHTML =
+      '<div class="q-sub"><span class="q-who"><b>' + esc(c.name) + '</b> · ' + C.fmtBiz(c.biz_no) + ' · 로그인 아이디 ' + esc(c.username || '(계정 없음)') +
+      ' · 사업장 ' + c.sites.length + '건</span></div>' +
+      (note ? '<p class="q-msg ok" role="status">' + esc(note) + '</p>' : '') +
+      '<div class="q-eh"></div>' +
+      '<div class="q-card q-danger" style="margin:14px 0 0"><h2 class="q-h2">회사정보 삭제</h2><p class="q-hint" data-dh></p>' +
+      '<button type="button" class="q-btn q-btn-red" data-delco>회사정보 삭제</button><p class="q-msg" data-dm role="alert"></p></div>';
+    form = F.create(dlg.bd.querySelector('.q-eh'), { mode: 'edit', data: c,
       onDeleteSite: function (id) { return call('delete_site', { p_site_id: id }); },
-      onChangePassword: function (pw) { return call('set_company_password', { p_company_id: c && c.id, p_new: pw }); } });
-    form.actions.innerHTML = '<button type="button" class="q-btn q-btn-line" data-x2>취소</button><button type="button" class="q-btn q-btn-red" data-save>' + (c ? '회사정보 수정' : '등록') + '</button>';
-    if (c && siteId) setTimeout(function () { form.focusSite(siteId); }, 50);
+      onSitesChange: upd,
+      onChangePassword: function (pw) { return call('set_company_password', { p_company_id: c.id, p_new: pw }); } });
+    var save = document.createElement('button'); save.type = 'button'; save.className = 'q-btn q-btn-red'; save.textContent = '회사정보 수정';
+    form.actions.appendChild(save);
+    save.addEventListener('click', function () {
+      save.disabled = true; form.say('');
+      form.payload(function (t) { form.say(t, true); }).then(function (p) { return call('save_company', { p: p }); })
+        .then(function () { return reloadCompany(c.id); })
+        .then(function (n) { detailDialog(n, dlg, '회사정보가 수정되었습니다.'); refreshView(); })
+        .catch(function (e) { if (!e.input) form.say(e.message); save.disabled = false; });
+    });
+    var del = dlg.bd.querySelector('[data-delco]');
+    function upd() {
+      var n = form.savedSites();
+      del.disabled = n > 0;
+      dlg.bd.querySelector('[data-dh]').innerHTML = n > 0
+        ? '등록된 사업장 자료가 <b>' + n + '건</b> 남아 있습니다. 회사정보는 <b>사업장 자료를 먼저 모두 삭제</b>(각 사업장의 ‘삭제’ 버튼)한 뒤에 삭제할 수 있습니다.'
+        : '사업장 자료가 모두 삭제되었습니다. 이제 회사정보를 삭제할 수 있습니다. 삭제하면 업체 로그인 계정도 함께 삭제됩니다.';
+      if (!first) refreshView();
+    }
+    var first = true;
+    del.addEventListener('click', function () {
+      var m = dlg.bd.querySelector('[data-dm]'); m.className = 'q-msg'; m.textContent = '';
+      if (form.savedSites() > 0) return;
+      if (!confirm('‘' + c.name + '’ 회사정보와 로그인 계정을 삭제할까요?\n삭제하면 복구할 수 없습니다.')) return;
+      call('delete_company', { p_id: c.id }).then(function () { dlg.d.close(); return refresh(); })
+        .catch(function (e) { m.className = 'q-msg err'; m.textContent = e.message; });
+    });
+    upd(); first = false;
+    return dlg;
+  }
+  /* 팝업을 열어 둔 채 뒤쪽 목록만 최신으로 */
+  function refreshView() {
+    reloadCompanyList().then(function () {
+      var body = document.getElementById('body');
+      if (body && S.tab === 'co') { var list = S.companies.filter(match); drawResult(body, list); var cnt = body.querySelector('.q-tools .q-count'); if (cnt) cnt.textContent = list.length + '건'; }
+    });
+  }
+  function reloadCompanyList() { return call('list_companies').then(function (r) { S.companies = r; }); }
+
+  /* 업체 신규등록(관리자) */
+  function companyDialog() {
+    var dlg = dialog('업체 신규등록');
+    dlg.bd.innerHTML = '<div class="q-eh"></div>';
+    var form = F.create(dlg.bd.querySelector('.q-eh'), { mode: 'new' });
+    form.actions.innerHTML = '<button type="button" class="q-btn q-btn-line" data-x2>취소</button><button type="button" class="q-btn q-btn-red" data-save>등록</button>';
     dlg.bd.querySelector('[data-x2]').addEventListener('click', function () { dlg.d.close(); });
     var b = dlg.bd.querySelector('[data-save]');
     b.addEventListener('click', function () {
       b.disabled = true; form.say('');
       form.payload(function (t) { form.say(t, true); }).then(function (p) { return call('save_company', { p: p }); })
-        .then(function (r) {
-          dlg.d.close();
-          return refresh();
-        })
+        .then(function () { dlg.d.close(); return refresh(); })
         .catch(function (e) { if (!e.input) form.say(e.message); b.disabled = false; });
     });
   }
