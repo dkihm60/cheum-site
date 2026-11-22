@@ -25,15 +25,17 @@
     return '<form class="q-form" novalidate autocomplete="off">' +
       '<fieldset class="q-sec"><legend>의뢰회사 정보</legend><div class="q-grid">' +
       '<div class="q-f q-w2"><label for="qf-name">의뢰회사명 <i>*</i></label><input id="qf-name" name="name" maxlength="100" autocomplete="organization"></div>' +
+      '<div class="q-g3 q-w2">' +
       '<div class="q-f"><label for="qf-biz">사업자등록번호 <i>*</i></label>' +
-      '<div class="q-inline"><input id="qf-biz" name="biz_no" inputmode="numeric" maxlength="12" placeholder="000-00-00000"><em class="q-badge" data-biz aria-live="polite"></em></div>' +
-      '<small>번호 형식과 검증번호를 입력 즉시 확인합니다.</small></div>' +
+      '<input id="qf-biz" name="biz_no" inputmode="numeric" maxlength="12" placeholder="000-00-00000">' +
+      '<small><em class="q-badge" data-biz aria-live="polite"></em> 입력 즉시 번호를 검증합니다</small></div>' +
       '<div class="q-f"><label for="qf-phone">회사 전화번호 <i>*</i></label><input id="qf-phone" name="phone" inputmode="tel" maxlength="14" placeholder="031-000-0000" autocomplete="tel"></div>' +
+      '<div class="q-f"><label for="qf-fax">FAX 번호</label><input id="qf-fax" name="fax" inputmode="tel" maxlength="14" placeholder="02-000-0000"></div>' +
+      '</div>' +
       '<div class="q-f q-w2"><span class="q-lbl">주소 <i>*</i></span>' +
       '<div class="q-inline"><input name="zipcode" class="q-zip" readonly placeholder="우편번호" aria-label="우편번호"><button type="button" class="q-btn" data-act="addr">주소 검색</button></div>' +
       '<input name="address" readonly placeholder="‘주소 검색’을 눌러 도로명·지번 주소를 선택하세요" aria-label="주소">' +
       '<input name="address_detail" maxlength="100" placeholder="상세주소 (동·호수, 층 등)" aria-label="상세주소"></div>' +
-      '<div class="q-f"><label for="qf-fax">FAX 번호</label><input id="qf-fax" name="fax" inputmode="tel" maxlength="14" placeholder="02-000-0000"></div>' +
       '</div></fieldset>' +
 
       '<fieldset class="q-sec"><legend>' + (isNew ? '로그인 정보' : '비밀번호 변경') + '</legend>' +
