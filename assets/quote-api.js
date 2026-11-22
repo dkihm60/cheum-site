@@ -49,7 +49,14 @@
     }).then(function (res) {
       return res.text().then(function (t) {
         var j = null; try { j = t ? JSON.parse(t) : null; } catch (e) { /* 비 JSON */ }
-        if (!res.ok) { var err = new Error(msgOf(j && j.message)); err.code = j && j.message; throw err; }
+        if (!res.ok) {
+          var m = j && j.message, c = j && j.code, err;
+          if (m && (m.indexOf('ERR:') === 0 || MSG[m])) err = new Error(msgOf(m));
+          else if (c === 'PGRST202' || res.status === 404) err = new Error('서버(Supabase) 설정이 최신이 아닙니다. 관리자에게 문의해 주세요. [함수 없음: ' + fn + ' — SQL 스키마 재실행 필요]');
+          else if (res.status === 401 || res.status === 403) err = new Error('서버 접근 키가 올바르지 않거나 권한이 없습니다. [' + res.status + ']');
+          else err = new Error('처리 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요. [' + (c || res.status) + (m ? ': ' + String(m).slice(0, 80) : '') + ']');
+          err.code = m; throw err;
+        }
         return j;
       });
     }, function () { throw new Error('서버에 연결할 수 없습니다. 인터넷 연결을 확인해 주세요.'); });
