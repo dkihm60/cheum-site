@@ -4,8 +4,8 @@
   var C = window.Cheum, F = window.CheumForm, esc = C.esc;
   var app = document.getElementById('app');
   var SCOPE = 'admin';
-  var BUILD = '2026-11-22 d · 업체별 조회 자동 표시';
-  var S = { tab: 'co', view: 'all', q: '', sel: '', companies: [], users: [], me: '' };
+  var BUILD = '2026-11-22 e · 업체별 조회 목록 통일';
+  var S = { tab: 'co', view: 'all', q: '', companies: [], users: [], me: '' };
 
   function tok() { return C.token(SCOPE); }
   function call(fn, args) {
@@ -43,7 +43,6 @@
   function refresh() {
     return Promise.all([call('list_companies'), call('list_users')]).then(function (r) {
       S.companies = r[0]; S.users = r[1];
-      if (S.sel && !S.companies.some(function (c) { return c.id === S.sel; })) S.sel = '';
       shell();
     });
   }
@@ -70,14 +69,13 @@
   function match(c) {
     var q = S.q.trim().toLowerCase(); if (!q) return true;
     var qd = C.digits(q);
-    var hay = [c.name, c.address, c.phone].concat(c.sites.map(function (s) { return s.site_name + ' ' + s.manager + ' ' + s.contact; })).join(' ').toLowerCase();
+    var hay = [c.name].concat(c.sites.map(function (s) { return s.site_name + ' ' + s.manager + ' ' + s.contact; })).join(' ').toLowerCase();
     return hay.indexOf(q) >= 0 || (qd && C.digits(c.biz_no).indexOf(qd) >= 0);
   }
   function companyTab(body) {
     body.innerHTML = '<div class="q-tools">' +
       '<div class="q-seg"><button data-v="all" aria-pressed="' + (S.view === 'all') + '">일괄 조회</button><button data-v="one" aria-pressed="' + (S.view === 'one') + '">업체별 조회</button></div>' +
       '<input class="q-in" type="search" id="srch" placeholder="회사명·사업자번호·사업장·담당자 검색" value="' + esc(S.q) + '" aria-label="검색" autocomplete="off">' +
-      (S.view === 'one' ? '<select class="q-in" id="pick" aria-label="업체 선택"></select>' : '') +
       '<span class="q-count" id="cnt"></span>' +
       '<button class="q-btn q-btn-red" style="margin-left:auto" data-act="new">+ 업체 신규등록</button></div><div id="res"></div>';
     body.querySelectorAll('[data-v]').forEach(function (b) { b.addEventListener('click', function () { S.view = b.getAttribute('data-v'); companyTab(body); }); });
@@ -86,29 +84,17 @@
        한글은 조합(composition)이 끝난 뒤에 검색한다. */
     var s = body.querySelector('#srch'), composing = false;
     s.addEventListener('compositionstart', function () { composing = true; });
-    s.addEventListener('compositionend', function () { composing = false; S.q = s.value; refreshList(true); });
-    s.addEventListener('input', function (e) { if (composing || e.isComposing) return; S.q = s.value; refreshList(true); });
-    var pick = body.querySelector('#pick');
-    if (pick) pick.addEventListener('change', function () { S.sel = pick.value; refreshList(); });
+    s.addEventListener('compositionend', function () { composing = false; S.q = s.value; refreshList(); });
+    s.addEventListener('input', function (e) { if (composing || e.isComposing) return; S.q = s.value; refreshList(); });
     body.querySelector('[data-act="new"]').addEventListener('click', function () { companyDialog(); });
     refreshList();
   }
 
   /* 조회 조건에 맞게 건수·업체 선택목록·결과표만 갱신 (검색칸은 그대로 둠) */
-  function refreshList(fromSearch) {
+  function refreshList() {
     var body = document.getElementById('body'); if (!body || S.tab !== 'co') return;
     var list = S.companies.filter(match);
-    if (S.view === 'one') {
-      if (list.length === 1) S.sel = list[0].id;                                         // 1건이면 바로 상세 표시
-      else if (fromSearch || !list.some(function (x) { return x.id === S.sel; })) S.sel = '';   // 검색어를 바꾸면 선택 해제
-    }
     var cnt = body.querySelector('#cnt'); if (cnt) cnt.textContent = list.length + '건';
-    var pick = body.querySelector('#pick');
-    if (pick) {
-      pick.innerHTML = '<option value="">— 업체 선택 —</option>' + list.map(function (c) {
-        return '<option value="' + c.id + '"' + (c.id === S.sel ? ' selected' : '') + '>' + esc(c.name) + ' (' + C.fmtBiz(c.biz_no) + ')</option>';
-      }).join('');
-    }
     drawResult(body, list);
   }
 
@@ -121,28 +107,12 @@
   function drawResult(body, list) {
     var res = body.querySelector('#res');
     if (S.view === 'one') {
-      var c = S.companies.filter(function (x) { return x.id === S.sel; })[0];
-      if (!c) {
-        if (!list.length) { res.innerHTML = '<div class="q-card q-empty">조회된 업체가 없습니다.</div>'; return; }
-        res.innerHTML = '<div class="q-card"><p class="q-hint" style="margin:0 0 10px"><b>' + list.length + '건</b>이 조회되었습니다. 업체를 선택하세요.</p><ul class="q-list">' +
-          list.map(function (x) {
-            return '<li><b>' + esc(x.name) + '</b><span class="num">' + C.fmtBiz(x.biz_no) + ' · ' + esc(x.phone) + ' · ' + esc(cut20(addr(x))) + '</span>' +
-              '<button type="button" class="q-btn q-btn-line q-btn-sm" data-pick="' + x.id + '">선택</button></li>';
-          }).join('') + '</ul></div>';
-        res.querySelectorAll('[data-pick]').forEach(function (b) {
-          b.addEventListener('click', function () { S.sel = b.getAttribute('data-pick'); refreshList(); });
-        });
-        return;
-      }
-      res.innerHTML = '<div class="q-card q-detail"><div class="q-sub"><h2>' + esc(c.name) + '</h2>' +
-        '<span class="q-who"><button class="q-btn q-btn-sm" data-detail="' + c.id + '">상세조회</button></span></div>' +
-        '<dl class="q-dl"><dt>사업자번호</dt><dd class="num">' + C.fmtBiz(c.biz_no) + '</dd><dt>전화번호</dt><dd class="num">' + esc(c.phone) + '</dd>' +
-        '<dt>FAX</dt><dd class="num">' + esc(c.fax || '-') + '</dd><dt>주소</dt><dd>' + esc(addr(c)) + '</dd>' +
-        '<dt>로그인 아이디</dt><dd class="num">' + esc(c.username || '(계정 없음)') + '</dd></dl>' +
-        '<div class="q-tw"><table class="q-t" style="min-width:560px"><thead><tr><th>사업장명</th><th>담당자</th><th>연락처</th><th>파일</th></tr></thead><tbody>' +
-        (c.sites.length ? c.sites.map(function (s) {
-          return '<tr><td>' + esc(s.site_name) + '</td><td>' + esc(s.manager) + '</td><td class="num">' + esc(s.contact) + '</td><td>' + filesHtml(s.files) + '</td></tr>';
-        }).join('') : '<tr><td colspan="4" class="q-empty">등록된 사업장이 없습니다.</td></tr>') + '</tbody></table></div></div>';
+      res.innerHTML = list.length ? '<div class="q-tw"><table class="q-t" style="min-width:820px"><thead><tr><th>회사명</th><th>사업자번호</th><th>전화번호</th><th>주소</th><th>사업장</th><th>상세조회</th></tr></thead><tbody>' +
+        list.map(function (c) {
+          return '<tr><td><b>' + esc(c.name) + '</b></td><td class="num">' + C.fmtBiz(c.biz_no) + '</td><td class="num">' + esc(c.phone) + '</td>' +
+            '<td title="' + esc(addr(c).trim()) + '">' + esc(cut20(addr(c))) + '</td><td>' + c.sites.length + '건</td>' +
+            '<td class="ops"><button class="q-btn q-btn-sm" data-detail="' + c.id + '">상세조회</button></td></tr>';
+        }).join('') + '</tbody></table></div>' : '<div class="q-card q-empty">조회된 업체가 없습니다.</div>';
     } else {
       res.innerHTML = list.length ? '<div class="q-tw"><table class="q-t"><thead><tr><th>회사명</th><th>사업자번호</th><th>전화번호</th><th>주소</th><th>사업장명</th><th>담당자</th><th>연락처</th><th>파일</th><th>상세조회</th></tr></thead><tbody>' +
         list.map(function (c) {
