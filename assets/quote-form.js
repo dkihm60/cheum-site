@@ -68,6 +68,7 @@
     opt = opt || {};
     var mode = opt.mode || 'new', data = opt.data || null;
     var form = el(tpl(mode, !!opt.pw));
+    if (opt.fullNames) form.classList.add('q-full');
     host.innerHTML = ''; host.appendChild(form);
     var $ = function (sel) { return form.querySelector(sel); };
     var sitesEl = $('.q-sites'), msg = $('.q-msg');
@@ -110,8 +111,8 @@
       ul.innerHTML = s._files.map(function (f, i) {
         var full = f.file_path ? f.file_name : f.file.name;
         var name = f.file_path
-          ? '<a href="' + C.esc(C.fileUrl(f.file_path)) + '" target="_blank" rel="noopener" title="' + C.esc(full) + '">' + C.esc(shortName(full)) + '</a>'
-          : '<span title="' + C.esc(full) + '">' + C.esc(shortName(full)) + '</span> <small class="q-pend">(등록 시 업로드)</small>';
+          ? '<a href="' + C.esc(C.fileUrl(f.file_path)) + '" target="_blank" rel="noopener" title="' + C.esc(full) + '">' + C.esc(opt.fullNames ? full : shortName(full)) + '</a>'
+          : '<span title="' + C.esc(full) + '">' + C.esc(opt.fullNames ? full : shortName(full)) + '</span> <small class="q-pend">(등록 시 업로드)</small>';
         return '<li>' + name + ' <small>' + C.size(f.file_size != null ? f.file_size : f.file.size) + '</small>' +
           '<button type="button" class="q-link q-del" data-act="rm-file" data-i="' + i + '" aria-label="파일 제거">제거</button></li>';
       }).join('');
@@ -215,6 +216,7 @@
     /* ---- 값 채우기 ---- */
     if (data) {
       ['name', 'zipcode', 'address', 'address_detail'].forEach(function (n) { field(n).value = data[n] || ''; });
+      field('address').title = data.address || '';
       field('biz_no').value = C.fmtBiz(data.biz_no); field('phone').value = C.fmtPhone(data.phone); field('fax').value = C.fmtPhone(data.fax);
       bizCheck();
       if (data.id) (data.sites || []).forEach(function (s) { addSite(s); }); else addSite();

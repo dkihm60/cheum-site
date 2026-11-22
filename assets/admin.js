@@ -156,11 +156,12 @@
     dlg.bd.innerHTML =
       '<div class="q-sub"><span class="q-who"><b>' + esc(c.name) + '</b> · ' + C.fmtBiz(c.biz_no) + ' · 로그인 아이디 ' + esc(c.username || '(계정 없음)') +
       ' · 사업장 ' + c.sites.length + '건</span></div>' +
+      '<p class="q-fulladdr"><b>주소</b> ' + esc(addr(c).trim()) + ' · <b>전화</b> ' + esc(c.phone) + (c.fax ? ' · <b>FAX</b> ' + esc(c.fax) : '') + '</p>' +
       (note ? '<p class="q-msg ok" role="status">' + esc(note) + '</p>' : '') +
       '<div class="q-eh"></div>' +
       '<div class="q-card q-danger" style="margin:14px 0 0"><h2 class="q-h2">회사정보 삭제</h2><p class="q-hint" data-dh></p>' +
       '<button type="button" class="q-btn q-btn-red" data-delco>회사정보 삭제</button><p class="q-msg" data-dm role="alert"></p></div>';
-    form = F.create(dlg.bd.querySelector('.q-eh'), { mode: 'edit', data: c,
+    form = F.create(dlg.bd.querySelector('.q-eh'), { mode: 'edit', data: c, fullNames: true,
       onDeleteSite: function (id) { return call('delete_site', { p_site_id: id }); },
       onSitesChange: upd,
       onChangePassword: function (pw) { return call('set_company_password', { p_company_id: c.id, p_new: pw }); } });
