@@ -8,14 +8,17 @@
 
   function siteTpl(id) {
     return '<section class="q-site">' +
-      '<div class="q-site-hd"><b class="q-site-no">사업장</b><button type="button" class="q-link q-del" data-act="del-site">이 사업장 삭제</button></div>' +
-      '<div class="q-grid">' +
-      '<div class="q-f q-w2"><label for="sn' + id + '">사업장명 <i>*</i></label><input id="sn' + id + '" name="site_name" maxlength="100" placeholder="예: OO아파트 신축현장"></div>' +
+      '<div class="q-site-hd"><b class="q-site-no">사업장</b><span class="q-site-ops">' +
+      '<button type="button" class="q-btn q-btn-st q-btn-sm" data-act="add-site">+ 사업장 추가</button>' +
+      '<button type="button" class="q-link q-del" data-act="del-site">삭제</button></span></div>' +
+      '<div class="q-grid q-gs">' +
+      '<div class="q-f"><label for="sn' + id + '">사업장명 <i>*</i></label><input id="sn' + id + '" name="site_name" maxlength="100" placeholder="예: OO아파트 신축현장"></div>' +
       '<div class="q-f"><label for="sm' + id + '">담당자 <i>*</i></label><input id="sm' + id + '" name="manager" maxlength="50" autocomplete="off"></div>' +
       '<div class="q-f"><label for="sc' + id + '">담당자 연락처 <i>*</i></label><input id="sc' + id + '" name="contact" inputmode="tel" maxlength="14" placeholder="010-0000-0000" autocomplete="off"></div>' +
       '</div>' +
-      '<div class="q-f q-files-box"><span class="q-lbl">첨부파일 <small>도면·견적요청서 등 · 파일당 ' + C.MAX_MB + 'MB 이하 · ' + C.EXT_OK.join(', ') + '</small></span>' +
-      '<div><button type="button" class="q-btn q-btn-line" data-act="pick">파일 선택</button><input type="file" multiple hidden></div>' +
+      '<div class="q-files-box"><div class="q-fr"><span class="q-lbl">첨부파일</span>' +
+      '<button type="button" class="q-btn q-btn-line q-btn-sm" data-act="pick">+ 파일 선택</button><input type="file" multiple hidden>' +
+      '<small>도면·견적요청서 등 · pdf, 이미지, hwp, doc, xls, dwg 등 · 파일당 ' + C.MAX_MB + 'MB 이하</small></div>' +
       '<ul class="q-files"></ul></div>' +
       '</section>';
   }
@@ -23,33 +26,28 @@
   function tpl(mode) {
     var isNew = mode === 'new';
     return '<form class="q-form" novalidate autocomplete="off">' +
-      '<fieldset class="q-sec"><legend>의뢰회사 정보</legend><div class="q-grid">' +
-      '<div class="q-f q-w2"><label for="qf-name">의뢰회사명 <i>*</i></label><input id="qf-name" name="name" maxlength="100" autocomplete="organization"></div>' +
-      '<div class="q-g3 q-w2">' +
+      '<fieldset class="q-sec q-co"><legend><span class="q-no">1</span>의뢰회사 정보</legend>' +
+      '<div class="q-grid q-g1"><div class="q-f"><label for="qf-name">의뢰회사명 <i>*</i></label><input id="qf-name" name="name" maxlength="100" autocomplete="organization"></div></div>' +
+      '<div class="q-grid q-g3">' +
       '<div class="q-f"><label for="qf-biz">사업자등록번호 <i>*</i></label>' +
       '<input id="qf-biz" name="biz_no" inputmode="numeric" maxlength="12" placeholder="000-00-00000">' +
       '<small><em class="q-badge" data-biz aria-live="polite"></em> 입력 즉시 번호를 검증합니다</small></div>' +
       '<div class="q-f"><label for="qf-phone">회사 전화번호 <i>*</i></label><input id="qf-phone" name="phone" inputmode="tel" maxlength="14" placeholder="031-000-0000" autocomplete="tel"></div>' +
       '<div class="q-f"><label for="qf-fax">FAX 번호</label><input id="qf-fax" name="fax" inputmode="tel" maxlength="14" placeholder="02-000-0000"></div>' +
       '</div>' +
-      '<div class="q-f q-w2"><span class="q-lbl">주소 <i>*</i></span>' +
-      '<div class="q-inline"><input name="zipcode" class="q-zip" readonly placeholder="우편번호" aria-label="우편번호"><button type="button" class="q-btn" data-act="addr">주소 검색</button></div>' +
-      '<input name="address" readonly placeholder="‘주소 검색’을 눌러 도로명·지번 주소를 선택하세요" aria-label="주소">' +
+      '<div class="q-f q-addr"><span class="q-lbl">주소 <i>*</i></span>' +
+      '<div class="q-inline"><input name="zipcode" class="q-zip" readonly placeholder="우편번호" aria-label="우편번호"><button type="button" class="q-btn q-btn-sm2" data-act="addr">주소 검색</button>' +
+      '<input name="address" readonly placeholder="‘주소 검색’을 눌러 주소를 선택하세요" aria-label="주소"></div>' +
       '<input name="address_detail" maxlength="100" placeholder="상세주소 (동·호수, 층 등)" aria-label="상세주소"></div>' +
-      '</div></fieldset>' +
-
-      '<fieldset class="q-sec"><legend>' + (isNew ? '로그인 정보' : '비밀번호 변경') + '</legend>' +
-      '<p class="q-hint">' + (isNew
-        ? '등록하면 <b>사업자등록번호가 아이디</b>가 되며, 이후 수정·삭제할 때 아래 비밀번호로 로그인합니다.'
-        : '비밀번호를 바꿀 때만 입력하세요. 비워 두면 그대로 유지됩니다.') + '</p>' +
-      '<div class="q-grid">' +
+      '<div class="q-sub-hd">' + (isNew ? '로그인 정보' : '비밀번호 변경') + '</div>' +
+      '<div class="q-grid q-g3">' +
       '<div class="q-f"><label for="qf-pw">' + (isNew ? '비밀번호 <i>*</i>' : '새 비밀번호') + '</label><input id="qf-pw" name="password" type="password" maxlength="64" autocomplete="new-password" placeholder="4자 이상"></div>' +
       '<div class="q-f"><label for="qf-pw2">비밀번호 확인' + (isNew ? ' <i>*</i>' : '') + '</label><input id="qf-pw2" name="password2" type="password" maxlength="64" autocomplete="new-password"></div>' +
+      '<p class="q-hint">' + (isNew ? '<b>사업자등록번호가 아이디</b>가 되며, 수정·삭제 시 이 비밀번호로 로그인합니다.' : '바꿀 때만 입력하세요. 비워 두면 유지됩니다.') + '</p>' +
       '</div></fieldset>' +
 
-      '<fieldset class="q-sec"><legend>사업장 <small>한 회사에 사업장을 여러 개 등록할 수 있습니다</small></legend>' +
-      '<div class="q-sites"></div>' +
-      '<button type="button" class="q-btn q-btn-line q-add" data-act="add-site">+ 사업장 추가</button></fieldset>' +
+      '<fieldset class="q-sec q-st"><legend><span class="q-no">2</span>사업장 정보 <small>한 회사에 여러 사업장을 등록할 수 있습니다</small></legend>' +
+      '<div class="q-sites"></div></fieldset>' +
       '<p class="q-msg" role="alert" aria-live="assertive"></p>' +
       '</form>';
   }
@@ -91,6 +89,7 @@
       list.forEach(function (s, i) {
         s.querySelector('.q-site-no').textContent = '사업장 ' + (i + 1);
         s.querySelector('[data-act="del-site"]').hidden = list.length < 2;
+        s.querySelector('[data-act="add-site"]').hidden = i !== list.length - 1;
       });
     }
     function renderFiles(s) {
