@@ -4,6 +4,7 @@
   var C = window.Cheum, F = window.CheumForm, esc = C.esc;
   var app = document.getElementById('app');
   var SCOPE = 'admin';
+  var BUILD = '2026-11-22 c · 한글 검색 수정판';
   var S = { tab: 'co', view: 'all', q: '', sel: '', companies: [], users: [], me: '' };
 
   function tok() { return C.token(SCOPE); }
@@ -56,7 +57,7 @@
       '</b> <button class="q-link" data-act="pw">비밀번호 변경</button> <button class="q-link" data-act="logout">로그아웃</button></p></div>' +
       '<div class="q-tabs" role="tablist"><button role="tab" data-t="co" aria-selected="' + (S.tab === 'co') + '">업체 조회</button>' +
       '<button role="tab" data-t="us" aria-selected="' + (S.tab === 'us') + '">사용자 관리</button></div>' +
-      '<div id="body"></div>';
+      '<div id="body"></div><p class="q-foot">관리자 화면 버전 ' + esc(BUILD) + '</p>';
     app.querySelectorAll('[data-t]').forEach(function (b) { b.addEventListener('click', function () { S.tab = b.getAttribute('data-t'); shell(); }); });
     app.querySelector('[data-act="logout"]').addEventListener('click', function () {
       var t = tok(); C.token(SCOPE, null); if (t) C.rpc('logout', { p_token: t }).catch(function () { /* 무시 */ }); loginView();
