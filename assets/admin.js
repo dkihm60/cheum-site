@@ -73,20 +73,37 @@
     return hay.indexOf(q) >= 0 || (qd && C.digits(c.biz_no).indexOf(qd) >= 0);
   }
   function companyTab(body) {
-    var list = S.companies.filter(match);
     body.innerHTML = '<div class="q-tools">' +
       '<div class="q-seg"><button data-v="all" aria-pressed="' + (S.view === 'all') + '">일괄 조회</button><button data-v="one" aria-pressed="' + (S.view === 'one') + '">업체별 조회</button></div>' +
-      '<input class="q-in" type="search" id="srch" placeholder="회사명·사업자번호·사업장·담당자 검색" value="' + esc(S.q) + '" aria-label="검색">' +
-      (S.view === 'one' ? '<select class="q-in" id="pick" aria-label="업체 선택"><option value="">— 업체 선택 —</option>' +
-        list.map(function (c) { return '<option value="' + c.id + '"' + (c.id === S.sel ? ' selected' : '') + '>' + esc(c.name) + ' (' + C.fmtBiz(c.biz_no) + ')</option>'; }).join('') + '</select>' : '') +
-      '<span class="q-count">' + list.length + '건</span>' +
+      '<input class="q-in" type="search" id="srch" placeholder="회사명·사업자번호·사업장·담당자 검색" value="' + esc(S.q) + '" aria-label="검색" autocomplete="off">' +
+      (S.view === 'one' ? '<select class="q-in" id="pick" aria-label="업체 선택"></select>' : '') +
+      '<span class="q-count" id="cnt"></span>' +
       '<button class="q-btn q-btn-red" style="margin-left:auto" data-act="new">+ 업체 신규등록</button></div><div id="res"></div>';
     body.querySelectorAll('[data-v]').forEach(function (b) { b.addEventListener('click', function () { S.view = b.getAttribute('data-v'); companyTab(body); }); });
-    var s = body.querySelector('#srch');
-    s.addEventListener('input', function () { S.q = s.value; var pos = s.selectionStart; companyTab(body); var n = body.querySelector('#srch'); n.focus(); n.setSelectionRange(pos, pos); });
+
+    /* 검색칸은 다시 그리지 않고(=한글 조합이 끊기지 않게) 결과 영역만 갱신한다.
+       한글은 조합(composition)이 끝난 뒤에 검색한다. */
+    var s = body.querySelector('#srch'), composing = false;
+    s.addEventListener('compositionstart', function () { composing = true; });
+    s.addEventListener('compositionend', function () { composing = false; S.q = s.value; refreshList(); });
+    s.addEventListener('input', function (e) { if (composing || e.isComposing) return; S.q = s.value; refreshList(); });
     var pick = body.querySelector('#pick');
-    if (pick) pick.addEventListener('change', function () { S.sel = pick.value; drawResult(body, list); });
+    if (pick) pick.addEventListener('change', function () { S.sel = pick.value; refreshList(true); });
     body.querySelector('[data-act="new"]').addEventListener('click', function () { companyDialog(); });
+    refreshList();
+  }
+
+  /* 조회 조건에 맞게 건수·업체 선택목록·결과표만 갱신 (검색칸은 그대로 둠) */
+  function refreshList(keepPick) {
+    var body = document.getElementById('body'); if (!body || S.tab !== 'co') return;
+    var list = S.companies.filter(match);
+    var cnt = body.querySelector('#cnt'); if (cnt) cnt.textContent = list.length + '건';
+    var pick = body.querySelector('#pick');
+    if (pick && !keepPick) {
+      pick.innerHTML = '<option value="">— 업체 선택 —</option>' + list.map(function (c) {
+        return '<option value="' + c.id + '"' + (c.id === S.sel ? ' selected' : '') + '>' + esc(c.name) + ' (' + C.fmtBiz(c.biz_no) + ')</option>';
+      }).join('');
+    }
     drawResult(body, list);
   }
 
@@ -195,12 +212,7 @@
     return dlg;
   }
   /* 팝업을 열어 둔 채 뒤쪽 목록만 최신으로 */
-  function refreshView() {
-    reloadCompanyList().then(function () {
-      var body = document.getElementById('body');
-      if (body && S.tab === 'co') { var list = S.companies.filter(match); drawResult(body, list); var cnt = body.querySelector('.q-tools .q-count'); if (cnt) cnt.textContent = list.length + '건'; }
-    });
-  }
+  function refreshView() { reloadCompanyList().then(function () { refreshList(); }); }
   function reloadCompanyList() { return call('list_companies').then(function (r) { S.companies = r; }); }
 
   /* 업체 신규등록(관리자) */
