@@ -362,3 +362,9 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .v-nav button:hover{background:var(--red);transform:scale(1.06)}
 .v-nav svg{width:22px;height:22px}
 @media (max-width:600px){.v-nav button{width:44px;height:44px}}
+
+/* 문의 영역: 지도 버튼 + 견적의뢰 버튼을 좁은 화면에서도 한 줄에 */
+@media (max-width:480px){
+  .map-links{gap:6px}
+  .map-links .pill{padding:0 11px;font-size:13.5px;gap:.3em;height:44px}
+}

@@ -14,6 +14,7 @@
 | `index.html` | 세로로 보기 — 가로 보기와 같은 16장을 위→아래로 (자동 생성 파일) |
 | `horizontal.html` | 가로로 보기 — 16장을 좌→우로 (내용 수정은 이 파일에서) |
 | `tools/build_vertical.py` | horizontal.html로 index.html을 다시 만드는 스크립트 |
+| `quote.html`, `admin.html` | 견적의뢰(고객)·관리자 화면 — 설정은 `SETUP-quote.md` |
 | `assets/style.css` | 공통 스타일 (지명원 레드 #E1192C · 차콜 #221F20 · 연회색 #EFEEEE) |
 | `assets/h.css`, `assets/h.js` | 가로 보기 전용 |
 | `assets/data.js` | 공사실적 103건 · 모델하우스 17건 (2025년 11월 기준 지명원) |
