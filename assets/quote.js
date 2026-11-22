@@ -30,8 +30,10 @@
   });
 
   /* ---------- 신규등록 ---------- */
-  var newForm = F.create($('#newHost'), { mode: 'new' });
-  var newBtn = $('#newSubmit');
+  var newForm, newBtn = document.createElement('button');
+  newBtn.type = 'button'; newBtn.id = 'newSubmit'; newBtn.className = 'q-btn q-btn-red'; newBtn.textContent = '견적의뢰 등록';
+  function mountNew() { newForm = F.create($('#newHost'), { mode: 'new' }); newForm.actions.appendChild(newBtn); }
+  mountNew();
   newBtn.addEventListener('click', function () {
     if (!C.ready) { newForm.say('서비스 준비 중입니다. 전화로 문의해 주세요.'); return; }
     busy(newBtn, true, '등록 중…');
@@ -45,7 +47,7 @@
       .then(function () { busy(newBtn, false, '견적의뢰 등록'); });
   });
   $('#doneAgain').addEventListener('click', function () {
-    newForm = F.create($('#newHost'), { mode: 'new' });
+    mountNew();
     $('#newCard').hidden = false; $('#newDone').hidden = true;
   });
   $('#doneEdit').addEventListener('click', function () { show('edit'); });
@@ -105,10 +107,12 @@
   /* ---------- 수정 ---------- */
   function renderEdit() {
     var host = panes.edit;
-    host.innerHTML = who() + '<div class="q-card"><div class="q-eh"></div><div class="q-actions"><button type="button" class="q-btn q-btn-red" data-act="save">수정 내용 저장</button></div></div>';
+    host.innerHTML = who() + '<div class="q-card"><div class="q-eh"></div></div>';
     bindLogout(host);
     editForm = F.create(host.querySelector('.q-eh'), { mode: 'edit', data: company });
-    var btn = host.querySelector('[data-act="save"]');
+    var btn = document.createElement('button');
+    btn.type = 'button'; btn.className = 'q-btn q-btn-red'; btn.setAttribute('data-act', 'save'); btn.textContent = '수정 내용 저장';
+    editForm.actions.appendChild(btn);
     btn.addEventListener('click', function () {
       busy(btn, true, '저장 중…'); editForm.say('');
       editForm.payload(function (t) { editForm.say(t, true); }).then(function (p) {

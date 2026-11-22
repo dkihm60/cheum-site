@@ -158,8 +158,9 @@
   }
   function companyDialog(c, siteId) {
     var dlg = dialog(c ? '업체 수정 — ' + c.name : '업체 신규등록');
-    dlg.bd.innerHTML = '<div class="q-eh"></div><div class="q-actions"><button type="button" class="q-btn q-btn-line" data-x2>취소</button><button type="button" class="q-btn q-btn-red" data-save>' + (c ? '저장' : '등록') + '</button></div>';
+    dlg.bd.innerHTML = '<div class="q-eh"></div>';
     var form = F.create(dlg.bd.querySelector('.q-eh'), { mode: c ? 'edit' : 'new', data: c });
+    form.actions.innerHTML = '<button type="button" class="q-btn q-btn-line" data-x2>취소</button><button type="button" class="q-btn q-btn-red" data-save>' + (c ? '저장' : '등록') + '</button>';
     if (c && siteId) setTimeout(function () { form.focusSite(siteId); }, 50);
     dlg.bd.querySelector('[data-x2]').addEventListener('click', function () { dlg.d.close(); });
     var b = dlg.bd.querySelector('[data-save]');

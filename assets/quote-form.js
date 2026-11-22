@@ -26,7 +26,7 @@
   function tpl(mode) {
     var isNew = mode === 'new';
     return '<form class="q-form" novalidate autocomplete="off">' +
-      '<fieldset class="q-sec q-co"><legend><span class="q-no">1</span>의뢰회사 정보</legend>' +
+      '<fieldset class="q-sec q-co"><legend><span class="q-no">1</span>의뢰회사 정보<span class="q-leg-act"></span></legend>' +
       '<div class="q-grid q-g1"><div class="q-f"><label for="qf-name">의뢰회사명 <i>*</i></label><input id="qf-name" name="name" maxlength="100" autocomplete="organization"></div></div>' +
       '<div class="q-grid q-g3">' +
       '<div class="q-f"><label for="qf-biz">사업자등록번호 <i>*</i></label>' +
@@ -225,7 +225,7 @@
       var s = Array.prototype.filter.call(sitesEl.querySelectorAll('.q-site'), function (x) { return x._id === id; })[0];
       if (s) s.scrollIntoView({ block: 'center' });
     }
-    return { el: form, say: say, payload: payload, focusSite: focusSite };
+    return { el: form, say: say, payload: payload, focusSite: focusSite, actions: form.querySelector('.q-leg-act') };
   }
 
   window.CheumForm = { create: create };
