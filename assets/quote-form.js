@@ -46,12 +46,11 @@
       '<input name="address" readonly placeholder="‘주소 검색’을 눌러 주소를 선택하세요" aria-label="주소"></div>' +
       '<input name="address_detail" maxlength="100" placeholder="상세주소 (동·호수, 층 등)" aria-label="상세주소"></div>' +
       (isNew ? '' :
-      '<div class="q-sub-hd">비밀번호 변경</div>' +
-      '<div class="q-grid q-g3">' +
+      '<div class="q-pwtoggle"><button type="button" class="q-link" data-act="pwopen" aria-expanded="false" aria-controls="qf-pwbox">비밀번호 변경 ▾</button></div>' +
+      '<div class="q-pwbox" id="qf-pwbox" hidden><div class="q-grid q-g3">' +
       '<div class="q-f"><label for="qf-pw">새 비밀번호</label><input id="qf-pw" name="password" type="password" maxlength="64" autocomplete="new-password" placeholder="4자 이상"></div>' +
       '<div class="q-f"><label for="qf-pw2">새 비밀번호 확인</label><input id="qf-pw2" name="password2" type="password" maxlength="64" autocomplete="new-password"></div>' +
-      '<p class="q-hint">바꿀 때만 입력하세요. 비워 두면 유지됩니다.</p>' +
-      '</div>') +
+      '<p class="q-hint">‘수정’ 버튼을 눌러야 변경됩니다.</p></div></div>') +
       '</div></fieldset>' +
 
       '<fieldset class="q-sec q-st"><legend><span class="q-no">2</span>사업장 정보 <small>한 회사에 여러 사업장을 등록할 수 있습니다</small></legend>' +
@@ -146,6 +145,12 @@
       else if (act === 'pick') s.querySelector('input[type=file]').click();
       else if (act === 'rm-file') { s._files.splice(+b.getAttribute('data-i'), 1); renderFiles(s); }
       else if (act === 'addr') openAddr();
+      else if (act === 'pwopen') {
+        var box = $('.q-pwbox'), open = box.hidden;
+        box.hidden = !open; b.setAttribute('aria-expanded', open); b.textContent = open ? '비밀번호 변경 취소 ▴' : '비밀번호 변경 ▾';
+        field('password').value = ''; field('password2').value = '';
+        if (open) field('password').focus();
+      }
       else if (act === 'pwshow') {
         var pi = field('password'), on = pi.type === 'password';
         pi.type = on ? 'text' : 'password'; b.textContent = on ? '숨김' : '보기'; b.setAttribute('aria-pressed', on);
@@ -200,7 +205,8 @@
     function validate() {
       var v = function (n, t, root) { var i = field(n, root); if (!i.value.trim()) fail(t, i); return i.value.trim(); };
       v('name', '의뢰회사명을 입력하세요.');
-      var pwEl = field('password'), pw = pwEl ? pwEl.value : '', pw2El = field('password2'), pw2 = pw2El ? pw2El.value : '';
+      var pwBox = $('.q-pwbox'), pwOpen = !pwBox || !pwBox.hidden;
+      var pwEl = field('password'), pw = pwEl && pwOpen ? pwEl.value : '', pw2El = field('password2'), pw2 = pw2El && pwOpen ? pw2El.value : '';
       if (mode === 'new' && pwEl) {
         if (pw.length < 4) { var pe = new Error('비밀번호는 4자 이상 입력하세요.'); pe.input = pwEl; pe.inline = true; throw pe; }
       } else if (mode !== 'new' && (pw || pw2)) {
@@ -251,7 +257,8 @@
             };
           })
         };
-        if (opt.pw) out.password = opt.pw; else if (pwEl2 && pwEl2.value) out.password = pwEl2.value;
+        var pb = $('.q-pwbox'), pbOpen = !pb || !pb.hidden;
+        if (opt.pw) out.password = opt.pw; else if (pwEl2 && pbOpen && pwEl2.value) out.password = pwEl2.value;
         return out;
       });
     }

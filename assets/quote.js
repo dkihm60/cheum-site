@@ -133,13 +133,13 @@
         onDeleteSite: function (id) { return C.rpc('delete_site', { p_token: tok(), p_site_id: id }).catch(function (e) { expired(e); throw e; }); },
         onSitesChange: updateDel
       });
-      var btn = document.createElement('button'); btn.type = 'button'; btn.className = 'q-btn q-btn-red'; btn.textContent = '수정 내용 저장';
+      var btn = document.createElement('button'); btn.type = 'button'; btn.className = 'q-btn q-btn-red'; btn.textContent = '수정';
       form.actions.appendChild(btn);
       btn.addEventListener('click', function () {
         busy(btn, true, '저장 중…'); form.say('');
         form.payload(function (t) { form.say(t, true); }).then(function (p) {
           return C.rpc('save_company', { p_token: tok(), p: p }).then(function () { return editor('저장되었습니다.'); });
-        }).catch(function (er) { if (!expired(er) && !er.input) form.say(er.message); busy(btn, false, '수정 내용 저장'); });
+        }).catch(function (er) { if (!expired(er) && !er.input) form.say(er.message); busy(btn, false, '수정'); });
       });
       $('#delCo').addEventListener('click', function () {
         var m = $('#delMsg'); m.className = 'q-msg'; m.textContent = '';

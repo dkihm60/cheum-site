@@ -184,3 +184,9 @@ dialog.q-dlg::backdrop{background:rgba(20,18,18,.6)}
 .q-danger .q-btn[disabled]{opacity:.35}
 .q-danger .q-hint{margin-bottom:12px}
 @media (max-width:720px){.q-pwstep .q-inline{flex-wrap:wrap}.q-pwstep .q-inline input{flex:1 1 100%}}
+
+/* 수정 화면: 비밀번호 변경은 눌렀을 때만 펼침 */
+.q-pwtoggle{margin-top:12px;padding-top:10px;border-top:1px dashed var(--q-co-line)}
+.q-pwtoggle .q-link{font-weight:700;color:var(--red-deep);font-size:14px;text-decoration:none;padding:4px 0}
+.q-pwtoggle .q-link:hover{text-decoration:underline}
+.q-pwbox{margin-top:10px}
