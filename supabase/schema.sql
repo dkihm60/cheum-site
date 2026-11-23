@@ -150,15 +150,54 @@ language sql stable security definer set search_path = public, extensions as $$
     from public.companies c where c.id = cid
 $$;
 
+-- 사업장 1건 + 첨부파일 저장 (회사 소속 확인은 호출한 쪽에서 끝낸 상태)
+create or replace function public._save_site(p_cid uuid, s jsonb) returns uuid
+language plpgsql security definer set search_path = public, extensions as $$
+declare sid uuid; f jsonb; fid uuid; keep_f uuid[] := '{}';
+begin
+  if coalesce(btrim(s->>'site_name'), '') = '' then raise exception 'ERR:사업장명을 입력하세요.'; end if;
+  if coalesce(btrim(s->>'manager'), '') = '' then raise exception 'ERR:담당자를 입력하세요.'; end if;
+  if coalesce(btrim(s->>'contact'), '') = '' then raise exception 'ERR:담당자 연락처를 입력하세요.'; end if;
+
+  sid := nullif(s->>'id', '')::uuid;
+  if sid is not null and exists (select 1 from public.sites where id = sid and company_id = p_cid) then
+    update public.sites
+       set site_name = btrim(s->>'site_name'), manager = btrim(s->>'manager'),
+           contact = btrim(s->>'contact'), updated_at = now()
+     where id = sid;
+  else
+    insert into public.sites(company_id, site_name, manager, contact)
+    values (p_cid, btrim(s->>'site_name'), btrim(s->>'manager'), btrim(s->>'contact'))
+    returning id into sid;
+  end if;
+
+  for f in select * from jsonb_array_elements(coalesce(s->'files', '[]'::jsonb)) loop
+    fid := nullif(f->>'id', '')::uuid;
+    if fid is not null and exists (select 1 from public.site_files where id = fid and site_id = sid) then
+      keep_f := keep_f || fid;
+    else
+      if coalesce(f->>'file_path', '') !~ '^[A-Za-z0-9_./-]{3,200}$' or (f->>'file_path') like '%..%' then
+        raise exception 'ERR:첨부파일 정보가 올바르지 않습니다.';
+      end if;
+      insert into public.site_files(site_id, file_name, file_path, file_size)
+      values (sid, left(coalesce(nullif(f->>'file_name', ''), 'file'), 200), f->>'file_path',
+              nullif(f->>'file_size', '')::bigint)
+      returning id into fid;
+      keep_f := keep_f || fid;
+    end if;
+  end loop;
+  delete from public.site_files where site_id = sid and id <> all(keep_f);
+  return sid;
+end $$;
+
 -- 회사 + 사업장 + 첨부파일을 한 번에 저장(없는 사업장·파일은 삭제)
 create or replace function public._save_company(p_cid uuid, p jsonb) returns uuid
 language plpgsql security definer set search_path = public, extensions as $$
 declare
   cid uuid := p_cid;
   biz text := public._digits(p->>'biz_no');
-  s jsonb; f jsonb; sid uuid; fid uuid;
+  s jsonb; sid uuid;
   keep_s uuid[] := '{}';
-  keep_f uuid[];
 begin
   if coalesce(btrim(p->>'name'), '') = '' then raise exception 'ERR:의뢰회사명을 입력하세요.'; end if;
   if not public._valid_biz(biz) then raise exception 'ERR:사업자등록번호가 올바르지 않습니다.'; end if;
@@ -180,44 +219,13 @@ begin
     if not found then raise exception 'ERR:업체를 찾을 수 없습니다.'; end if;
   end if;
 
-  for s in select * from jsonb_array_elements(coalesce(p->'sites', '[]'::jsonb)) loop
-    if coalesce(btrim(s->>'site_name'), '') = '' then raise exception 'ERR:사업장명을 입력하세요.'; end if;
-    if coalesce(btrim(s->>'manager'), '') = '' then raise exception 'ERR:담당자를 입력하세요.'; end if;
-    if coalesce(btrim(s->>'contact'), '') = '' then raise exception 'ERR:담당자 연락처를 입력하세요.'; end if;
-
-    sid := nullif(s->>'id', '')::uuid;
-    if sid is not null and exists (select 1 from public.sites where id = sid and company_id = cid) then
-      update public.sites
-         set site_name = btrim(s->>'site_name'), manager = btrim(s->>'manager'),
-             contact = btrim(s->>'contact'), updated_at = now()
-       where id = sid;
-    else
-      insert into public.sites(company_id, site_name, manager, contact)
-      values (cid, btrim(s->>'site_name'), btrim(s->>'manager'), btrim(s->>'contact'))
-      returning id into sid;
-    end if;
-    keep_s := keep_s || sid;
-
-    keep_f := '{}';
-    for f in select * from jsonb_array_elements(coalesce(s->'files', '[]'::jsonb)) loop
-      fid := nullif(f->>'id', '')::uuid;
-      if fid is not null and exists (select 1 from public.site_files where id = fid and site_id = sid) then
-        keep_f := keep_f || fid;
-      else
-        if coalesce(f->>'file_path', '') !~ '^[A-Za-z0-9_./-]{3,200}$' or (f->>'file_path') like '%..%' then
-          raise exception 'ERR:첨부파일 정보가 올바르지 않습니다.';
-        end if;
-        insert into public.site_files(site_id, file_name, file_path, file_size)
-        values (sid, left(coalesce(nullif(f->>'file_name', ''), 'file'), 200), f->>'file_path',
-                nullif(f->>'file_size', '')::bigint)
-        returning id into fid;
-        keep_f := keep_f || fid;
-      end if;
+  if p ? 'sites' then                      -- sites 항목이 없으면(회사정보만 수정) 사업장은 건드리지 않음
+    for s in select * from jsonb_array_elements(coalesce(p->'sites', '[]'::jsonb)) loop
+      sid := public._save_site(cid, s);
+      keep_s := keep_s || sid;
     end loop;
-    delete from public.site_files where site_id = sid and id <> all(keep_f);
-  end loop;
-
-  delete from public.sites where company_id = cid and id <> all(keep_s);
+    delete from public.sites where company_id = cid and id <> all(keep_s);
+  end if;
   return cid;
 exception when unique_violation then
   raise exception 'ERR:이미 등록된 사업자등록번호입니다.';
@@ -398,6 +406,21 @@ begin
   return jsonb_build_object('ok', true);
 end $$;
 
+-- 사업장 1건 저장 (업체: 본인 회사 / 관리자: p_company_id 로 지정한 회사). 첨부파일 목록도 함께 반영합니다.
+create or replace function public.save_site(p_token uuid, p jsonb, p_company_id uuid default null) returns jsonb
+language plpgsql security definer set search_path = public, extensions as $$
+declare u public.app_users; cid uuid; sid uuid;
+begin
+  u := public._auth(p_token);
+  if u.role = 'admin' then cid := p_company_id; else cid := u.company_id; end if;
+  if cid is null or not exists (select 1 from public.companies where id = cid) then raise exception 'FORBIDDEN'; end if;
+  sid := public._save_site(cid, p);
+  update public.companies set updated_at = now() where id = cid;
+  return (select to_jsonb(x) || jsonb_build_object('files', coalesce((
+            select jsonb_agg(to_jsonb(f) order by f.created_at) from public.site_files f where f.site_id = x.id), '[]'::jsonb))
+            from public.sites x where x.id = sid);
+end $$;
+
 create or replace function public.delete_company(p_token uuid, p_id uuid default null) returns jsonb
 language plpgsql security definer set search_path = public, extensions as $$
 declare u public.app_users; cid uuid;
@@ -513,7 +536,7 @@ end $$;
 
 -- ---------------------------------------------------------------- 권한
 revoke execute on function public._digits(text), public._valid_biz(text), public._auth(uuid),
-  public._admin(uuid), public._company_json(uuid), public._save_company(uuid, jsonb), public._gen_pw(), public._mask_phone(text)
+  public._admin(uuid), public._company_json(uuid), public._save_company(uuid, jsonb), public._save_site(uuid, jsonb), public._gen_pw(), public._mask_phone(text)
   from public, anon, authenticated;
 
 grant execute on function
@@ -521,7 +544,7 @@ grant execute on function
   public.my_company(uuid), public.save_company(uuid, jsonb), public.delete_company(uuid, uuid),
   public.delete_site(uuid, uuid), public.list_companies(uuid), public.list_users(uuid),
   public.save_user(uuid, jsonb), public.delete_user(uuid, uuid),
-  public.change_password(uuid, text, text), public.set_company_password(uuid, text, uuid)
+  public.change_password(uuid, text, text), public.set_company_password(uuid, text, uuid), public.save_site(uuid, jsonb, uuid)
   to anon, authenticated;
 
 -- ---------------------------------------------------------------- 기본 관리자 (admin / 1234)

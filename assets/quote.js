@@ -118,9 +118,9 @@
   /* ---------- 비밀번호 확인 후: 추가 / 수정 / 삭제 ---------- */
   function editor(note) {
     return C.rpc('my_company', { p_token: tok() }).then(function (c) {
-      company = c; var files = c.sites.reduce(function (n, s) { return n + s.files.length; }, 0);
+      company = c;
       stage.innerHTML =
-        '<div class="q-sub"><span class="q-who"><b>' + esc(c.name) + '</b> · ' + C.fmtBiz(c.biz_no) + ' · 사업장 ' + c.sites.length + '건 · 첨부파일 ' + files + '개</span>' +
+        '<div class="q-sub"><span class="q-who" id="edHead"></span>' +
         '<button type="button" class="q-btn q-btn-line q-btn-sm" data-act="logout">로그아웃</button></div>' +
         (note ? '<p class="q-msg ok" role="status">' + esc(note) + '</p>' : '') +
         '<div class="q-card"><div id="edHost"></div></div>' +
@@ -131,16 +131,21 @@
       form = F.create($('#edHost'), {
         mode: 'edit', data: c,
         onDeleteSite: function (id) { return C.rpc('delete_site', { p_token: tok(), p_site_id: id }).catch(function (e) { expired(e); throw e; }); },
-        onSitesChange: updateDel,
+        onSitesChange: function () { updateDel(); head(); },
+        onSaveSite: function (site) { return C.rpc('save_site', { p_token: tok(), p: site }).catch(function (e) { expired(e); throw e; }); },
         onChangePassword: function (pw) { return C.rpc('set_company_password', { p_token: tok(), p_new: pw }).catch(function (e) { expired(e); throw e; }); }
       });
       var btn = document.createElement('button'); btn.type = 'button'; btn.className = 'q-btn q-btn-red'; btn.textContent = '회사정보 수정';
       form.actions.appendChild(btn);
+      head();
       btn.addEventListener('click', function () {
         busy(btn, true, '수정 중…'); form.say('');
         form.payload(function (t) { form.say(t, true); }).then(function (p) {
-          return C.rpc('save_company', { p_token: tok(), p: p }).then(function () { return editor('회사정보가 수정되었습니다.'); });
-        }).catch(function (er) { if (!expired(er) && !er.input) form.say(er.message); busy(btn, false, '회사정보 수정'); });
+          return C.rpc('save_company', { p_token: tok(), p: p }).then(function () {
+            company.name = p.name; company.biz_no = p.biz_no; head();
+            form.say('회사정보가 수정되었습니다. (사업장 자료는 각 사업장의 ‘저장’ 버튼으로 저장합니다)', true);
+          });
+        }).catch(function (er) { if (!expired(er) && !er.input) form.say(er.message); }).then(function () { busy(btn, false, '회사정보 수정'); });
       });
       $('#delCo').addEventListener('click', function () {
         var m = $('#delMsg'); m.className = 'q-msg'; m.textContent = '';
@@ -154,6 +159,11 @@
       updateDel();
       if (note) window.scrollTo({ top: 0, behavior: 'smooth' });
     }).catch(function (er) { if (!expired(er)) say(er.message); });
+  }
+
+  function head() {
+    var h = $('#edHead'); if (!h || !form || !company) return; var n = form.counts();
+    h.innerHTML = '<b>' + esc(company.name) + '</b> · ' + C.fmtBiz(company.biz_no) + ' · 사업장 ' + n.sites + '건 · 첨부파일 ' + n.files + '개';
   }
 
   /* 회사정보 삭제는 사업장 자료를 모두 삭제한 뒤에만 가능 */

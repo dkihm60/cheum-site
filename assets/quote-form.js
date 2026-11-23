@@ -11,7 +11,8 @@
 
   function siteTpl(id) {
     return '<section class="q-site">' +
-      '<div class="q-site-hd"><b class="q-site-no">사업장</b><span class="q-site-ops">' +
+      '<div class="q-site-hd"><b class="q-site-no">사업장</b><span class="q-dirty-tag" hidden>● 저장 안 됨</span><span class="q-site-ops">' +
+      '<button type="button" class="q-btn q-btn-red q-btn-sm" data-act="save-site" hidden>저장</button>' +
       '<button type="button" class="q-btn q-btn-st q-btn-sm" data-act="add-site">+ 사업장 추가</button>' +
       '<button type="button" class="q-link q-del" data-act="del-site">삭제</button></span></div>' +
       '<div class="q-grid q-gs">' +
@@ -111,12 +112,16 @@
       ul.innerHTML = s._files.map(function (f, i) {
         var full = f.file_path ? f.file_name : f.file.name;
         var name = f.file_path
-          ? '<a href="' + C.esc(C.fileUrl(f.file_path)) + '" target="_blank" rel="noopener" title="' + C.esc(full) + '">' + C.esc(opt.fullNames ? full : shortName(full)) + '</a>'
-          : '<span title="' + C.esc(full) + '">' + C.esc(opt.fullNames ? full : shortName(full)) + '</span> <small class="q-pend">(등록 시 업로드)</small>';
+          ? '<a href="' + C.esc(C.fileUrl(f.file_path, full)) + '" download="' + C.esc(full) + '" rel="noopener" title="' + C.esc(full) + ' — 클릭하면 다운로드">↓ ' + C.esc(opt.fullNames ? full : shortName(full)) + '</a>'
+          : '<span title="' + C.esc(full) + '">' + C.esc(opt.fullNames ? full : shortName(full)) + '</span> <small class="q-pend">(' + (opt.onSaveSite ? '저장 시 업로드' : '등록 시 업로드') + ')</small>';
         return '<li>' + name + ' <small>' + C.size(f.file_size != null ? f.file_size : f.file.size) + '</small>' +
           '<button type="button" class="q-link q-del" data-act="rm-file" data-i="' + i + '" aria-label="파일 제거">제거</button></li>';
       }).join('');
       s.querySelector('.q-fcount').textContent = s._files.length ? '(' + s._files.length + ')' : '';
+    }
+    function setDirty(s, on) {
+      if (!opt.onSaveSite || mode === 'new') return;
+      s.classList.toggle('q-dirty', on); s.querySelector('.q-dirty-tag').hidden = !on;
     }
     function addSite(d) {
       var s = el(siteTpl(++seq));
@@ -127,7 +132,10 @@
         field('contact', s).value = d.contact || '';
         (d.files || []).forEach(function (f) { s._files.push({ id: f.id, file_name: f.file_name, file_path: f.file_path, file_size: f.file_size }); });
       }
-      sitesEl.appendChild(s); renderFiles(s); renumber();
+      sitesEl.appendChild(s);
+      s.querySelector('[data-act="save-site"]').hidden = !(opt.onSaveSite && mode !== 'new');
+      renderFiles(s); renumber();
+      if (!d && opt.onSaveSite && mode !== 'new') setDirty(s, true);       // 새 사업장은 저장 전까지 '저장 안 됨'
       return s;
     }
 
@@ -150,7 +158,8 @@
         }
       }
       else if (act === 'pick') s.querySelector('input[type=file]').click();
-      else if (act === 'rm-file') { s._files.splice(+b.getAttribute('data-i'), 1); renderFiles(s); }
+      else if (act === 'rm-file') { s._files.splice(+b.getAttribute('data-i'), 1); renderFiles(s); setDirty(s, true); }
+      else if (act === 'save-site') saveSite(s, b);
       else if (act === 'addr') openAddr();
       else if (act === 'pwopen') pwToggle($('.q-pwbox').hidden);
       else if (act === 'pwcancel') pwToggle(false);
@@ -166,7 +175,7 @@
       Array.prototype.forEach.call(e.target.files, function (f) {
         var er = C.checkFile(f); if (er) errs.push(er); else s._files.push({ file: f });
       });
-      e.target.value = ''; renderFiles(s); say(errs.join('\n'));
+      e.target.value = ''; renderFiles(s); setDirty(s, true); say(errs.join('\n'));
     });
     function pwToggle(open) {
       var box = $('.q-pwbox'), t = $('[data-act="pwopen"]');
@@ -188,6 +197,7 @@
     var pwm = $('.q-pwmsg:not(.q-pwbox-msg)'), pwHint = pwm ? pwm.textContent : '';
     function pwSay(t) { if (pwm) { pwm.textContent = t || pwHint; pwm.className = 'q-pwmsg' + (t ? ' err' : ''); } }
     form.addEventListener('input', function (e) {
+      var st = e.target.closest && e.target.closest('.q-site'); if (st) setDirty(st, true);
       if (e.target.name === 'password' && mode === 'new') pwSay('');
       if (e.target.getAttribute('aria-invalid') === 'true' && e.target !== biz) e.target.removeAttribute('aria-invalid');
     });
@@ -224,8 +234,14 @@
     } else addSite();
 
     /* ---- 검증 + 파일 업로드 → 서버로 보낼 payload ---- */
+    var v = function (n, t, root) { var i = field(n, root); if (!i.value.trim()) fail(t, i); return i.value.trim(); };
+    function validateSite(s) {
+      var i = Array.prototype.indexOf.call(sitesEl.querySelectorAll('.q-site'), s), tag = '사업장 ' + (i + 1) + ' — ';
+      v('site_name', tag + '사업장명을 입력하세요.', s); v('manager', tag + '담당자를 입력하세요.', s);
+      v('contact', tag + '담당자 연락처를 입력하세요.', s);
+      if (C.digits(field('contact', s).value).length < 9) fail(tag + '연락처를 끝까지 입력하세요.', field('contact', s));
+    }
     function validate() {
-      var v = function (n, t, root) { var i = field(n, root); if (!i.value.trim()) fail(t, i); return i.value.trim(); };
       v('name', '의뢰회사명을 입력하세요.');
       var pwEl = mode === 'new' ? field('password') : null;
       if (pwEl && pwEl.value.length < 4) { var pe = new Error('비밀번호는 4자 이상 입력하세요.'); pe.input = pwEl; pe.inline = true; throw pe; }
@@ -235,28 +251,46 @@
       if (C.digits(field('phone').value).length < 8) fail('회사 전화번호를 끝까지 입력하세요.', field('phone'));
       var sites = sitesEl.querySelectorAll('.q-site');
       if (!sites.length && mode === 'new') fail('사업장을 1개 이상 입력하세요.');
-      sites.forEach(function (s, i) {
-        var tag = '사업장 ' + (i + 1) + ' — ';
-        v('site_name', tag + '사업장명을 입력하세요.', s); v('manager', tag + '담당자를 입력하세요.', s);
-        v('contact', tag + '담당자 연락처를 입력하세요.', s);
-        if (C.digits(field('contact', s).value).length < 9) fail(tag + '연락처를 끝까지 입력하세요.', field('contact', s));
-      });
+      if (!(opt.onSaveSite && mode !== 'new')) sites.forEach(validateSite);       // 사업장별 저장 방식이면 회사정보 수정 때는 사업장 검증 안 함
     }
-    function payload(onProgress) {
-      try { validate(); } catch (err) {
-        if (err.input) { err.input.setAttribute('aria-invalid', 'true'); err.input.scrollIntoView({ block: 'center', behavior: 'smooth' }); err.input.focus({ preventScroll: true }); }
-        if (err.inline) { pwSay(err.message); say(''); } else say(err.message);
-        return Promise.reject(err);
-      }
-      var pend = [];
-      sitesEl.querySelectorAll('.q-site').forEach(function (s) { s._files.forEach(function (f) { if (f.file) pend.push(f); }); });
-      var done = 0;
-      var chain = pend.reduce(function (p, f) {
+    function showErr(err) {
+      if (err.input) { err.input.setAttribute('aria-invalid', 'true'); err.input.scrollIntoView({ block: 'center', behavior: 'smooth' }); err.input.focus({ preventScroll: true }); }
+      if (err.inline) { pwSay(err.message); say(''); } else say(err.message);
+    }
+    /* 선택해 둔 파일을 올리고(저장소), 서버에 보낼 사업장 데이터 반환 */
+    function uploadSite(s, onProgress) {
+      var pend = s._files.filter(function (f) { return f.file; }), done = 0;
+      return pend.reduce(function (p, f) {
         return p.then(function () {
           if (onProgress) onProgress('파일 업로드 중… (' + (++done) + '/' + pend.length + ')');
           return C.upload(f.file).then(function (r) { f.file_name = r.file_name; f.file_path = r.file_path; f.file_size = r.file_size; delete f.file; });
         });
       }, Promise.resolve());
+    }
+    function sitePayload(s) {
+      return {
+        id: s._id || null, site_name: field('site_name', s).value.trim(), manager: field('manager', s).value.trim(),
+        contact: field('contact', s).value.trim(),
+        files: s._files.map(function (f) { return { id: f.id || null, file_name: f.file_name, file_path: f.file_path, file_size: f.file_size }; })
+      };
+    }
+    /* 사업장 1건 저장: 검증 → 파일 업로드 → 서버 저장 → 화면 갱신 */
+    function saveSite(s, btn) {
+      if (!opt.onSaveSite) return;
+      try { validateSite(s); } catch (err) { showErr(err); return; }
+      btn.disabled = true; btn.textContent = '저장 중…'; say('');
+      uploadSite(s, function (t) { say(t, true); }).then(function () { return opt.onSaveSite(sitePayload(s)); }).then(function (res) {
+        s._id = res.id;
+        s._files = (res.files || []).map(function (f) { return { id: f.id, file_name: f.file_name, file_path: f.file_path, file_size: f.file_size }; });
+        renderFiles(s); setDirty(s, false);
+        say('‘' + field('site_name', s).value.trim() + '’ 사업장이 저장되었습니다.', true);
+        if (opt.onSitesChange) opt.onSitesChange();
+      }).catch(function (er) { say(er.message); }).then(function () { btn.disabled = false; btn.textContent = '저장'; });
+    }
+    function payload(onProgress) {
+      try { validate(); } catch (err) { showErr(err); return Promise.reject(err); }
+      var chain = Promise.resolve(), perSite = opt.onSaveSite && mode !== 'new';
+      if (!perSite) sitesEl.querySelectorAll('.q-site').forEach(function (s) { chain = chain.then(function () { return uploadSite(s, onProgress); }); });
       return chain.then(function () {
         var pwEl2 = mode === 'new' ? field('password') : null;
         var out = {
@@ -264,15 +298,9 @@
           name: field('name').value.trim(), biz_no: C.digits(biz.value),
           zipcode: field('zipcode').value.trim(), address: field('address').value.trim(),
           address_detail: field('address_detail').value.trim(),
-          phone: field('phone').value.trim(), fax: field('fax').value.trim(),
-          sites: Array.prototype.map.call(sitesEl.querySelectorAll('.q-site'), function (s) {
-            return {
-              id: s._id || null, site_name: field('site_name', s).value.trim(), manager: field('manager', s).value.trim(),
-              contact: field('contact', s).value.trim(),
-              files: s._files.map(function (f) { return { id: f.id || null, file_name: f.file_name, file_path: f.file_path, file_size: f.file_size }; })
-            };
-          })
+          phone: field('phone').value.trim(), fax: field('fax').value.trim()
         };
+        if (!perSite) out.sites = Array.prototype.map.call(sitesEl.querySelectorAll('.q-site'), sitePayload);   // 사업장별 저장 방식이면 회사정보만 전송
         if (opt.pw) out.password = opt.pw; else if (pwEl2 && pwEl2.value) out.password = pwEl2.value;
         return out;
       });
@@ -281,8 +309,12 @@
       var s = Array.prototype.filter.call(sitesEl.querySelectorAll('.q-site'), function (x) { return x._id === id; })[0];
       if (s) s.scrollIntoView({ block: 'center' });
     }
+    function counts() {
+      var l = Array.prototype.filter.call(sitesEl.querySelectorAll('.q-site'), function (x) { return x._id; });
+      return { sites: l.length, files: l.reduce(function (n, x) { return n + x._files.filter(function (f) { return f.id; }).length; }, 0) };
+    }
     function savedSites() { return Array.prototype.filter.call(sitesEl.querySelectorAll('.q-site'), function (x) { return x._id; }).length; }
-    return { el: form, say: say, payload: payload, focusSite: focusSite, savedSites: savedSites, actions: form.querySelector('.q-leg-act') };
+    return { el: form, say: say, payload: payload, focusSite: focusSite, savedSites: savedSites, counts: counts, actions: form.querySelector('.q-leg-act') };
   }
 
   window.CheumForm = { create: create };

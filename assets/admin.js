@@ -4,7 +4,7 @@
   var C = window.Cheum, F = window.CheumForm, esc = C.esc;
   var app = document.getElementById('app');
   var SCOPE = 'admin';
-  var BUILD = '2026-11-22 e · 업체별 조회 목록 통일';
+  var BUILD = '2026-11-23 f · 사업장별 저장·다운로드';
   var S = { tab: 'co', view: 'all', q: '', companies: [], users: [], me: '' };
 
   function tok() { return C.token(SCOPE); }
@@ -99,7 +99,7 @@
   }
 
   function filesHtml(files) {
-    return files.length ? '<ul>' + files.map(function (f) { return '<li><a href="' + esc(C.fileUrl(f.file_path)) + '" target="_blank" rel="noopener">' + esc(f.file_name) + '</a></li>'; }).join('') + '</ul>' : '<span class="q-count">-</span>';
+    return files.length ? '<ul>' + files.map(function (f) { return '<li><a href="' + esc(C.fileUrl(f.file_path, f.file_name)) + '" download="' + esc(f.file_name) + '" rel="noopener" title="클릭하면 다운로드">↓ ' + esc(f.file_name) + '</a></li>'; }).join('') + '</ul>' : '<span class="q-count">-</span>';
   }
   /* 20자까지만 표시, 넘으면 ... (전체는 마우스를 올리면 표시) */
   function cut20(t) { t = String(t || '').trim(); return t.length > 20 ? t.slice(0, 20) + '...' : t; }
@@ -167,15 +167,15 @@
     form = F.create(dlg.bd.querySelector('.q-eh'), { mode: 'edit', data: c, fullNames: true,
       onDeleteSite: function (id) { return call('delete_site', { p_site_id: id }); },
       onSitesChange: upd,
+      onSaveSite: function (site) { return call('save_site', { p: site, p_company_id: c.id }); },
       onChangePassword: function (pw) { return call('set_company_password', { p_company_id: c.id, p_new: pw }); } });
     var save = document.createElement('button'); save.type = 'button'; save.className = 'q-btn q-btn-red'; save.textContent = '회사정보 수정';
     form.actions.appendChild(save);
     save.addEventListener('click', function () {
       save.disabled = true; form.say('');
       form.payload(function (t) { form.say(t, true); }).then(function (p) { return call('save_company', { p: p }); })
-        .then(function () { return reloadCompany(c.id); })
-        .then(function (n) { detailDialog(n, dlg, '회사정보가 수정되었습니다.'); refreshView(); })
-        .catch(function (e) { if (!e.input) form.say(e.message); save.disabled = false; });
+        .then(function () { form.say('회사정보가 수정되었습니다. (사업장 자료는 각 사업장의 ‘저장’ 버튼으로 저장합니다)', true); refreshView(); })
+        .catch(function (e) { if (!e.input) form.say(e.message); }).then(function () { save.disabled = false; });
     });
     var del = dlg.bd.querySelector('[data-delco]');
     function upd() {

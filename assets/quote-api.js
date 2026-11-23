@@ -84,7 +84,7 @@
       return { file_name: file.name, file_path: path, file_size: file.size };
     }, function () { throw new Error('"' + file.name + '" 업로드 중 연결이 끊어졌습니다.'); });
   }
-  function fileUrl(path) { return BASE + '/storage/v1/object/public/' + BUCKET + '/' + path; }
+  function fileUrl(path, name) { return BASE + '/storage/v1/object/public/' + BUCKET + '/' + path + (name ? '?download=' + encodeURIComponent(name) : ''); }
 
   /* 사업자등록번호 검증번호(체크섬) */
   function digits(s) { return String(s || '').replace(/\D/g, ''); }
