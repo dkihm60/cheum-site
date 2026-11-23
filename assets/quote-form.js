@@ -17,13 +17,15 @@
       '<button type="button" class="q-link q-del" data-act="del-site">삭제</button></span></div>' +
       '<div class="q-grid q-gs">' +
       '<div class="q-f"><label for="sn' + id + '">사업장명 <i>*</i></label><input id="sn' + id + '" name="site_name" maxlength="100" placeholder="예: OO아파트 신축현장"></div>' +
-      '<div class="q-f q-fcell"><span class="q-lbl">첨부된 파일 <small class="q-fcount"></small></span><ul class="q-files" aria-label="첨부된 파일"></ul></div>' +
       '<div class="q-f"><label for="sm' + id + '">담당자 <i>*</i></label><input id="sm' + id + '" name="manager" maxlength="50" autocomplete="off"></div>' +
       '<div class="q-f"><label for="sc' + id + '">연락처 <i>*</i></label><input id="sc' + id + '" name="contact" inputmode="tel" maxlength="14" placeholder="010-0000-0000" autocomplete="off"></div>' +
       '</div>' +
-      '<div class="q-files-box"><div class="q-fr"><span class="q-lbl">첨부파일</span>' +
-      '<button type="button" class="q-btn q-btn-line q-btn-sm" data-act="pick">+ 파일 선택</button><input type="file" multiple hidden>' +
-      '<small>도면·견적요청서 등 · pdf, 이미지, hwp, doc, xls, dwg 등 · 파일당 ' + C.MAX_MB + 'MB 이하</small></div></div>' +
+      '<div class="q-boardbox">' +
+      '<div class="q-board-hd"><span class="q-lbl">첨부파일 <small class="q-fcount"></small></span>' +
+      '<button type="button" class="q-btn q-btn-st q-btn-sm" data-act="pick">+ 파일 추가</button><input type="file" multiple hidden></div>' +
+      '<div class="q-board-wrap"><table class="q-board"><thead><tr><th class="c-no">번호</th><th>파일명</th><th class="c-sz">크기</th><th class="c-dl">다운로드</th><th class="c-rm">삭제</th></tr></thead><tbody></tbody></table></div>' +
+      '<div class="q-board-ft">여러 개를 한 번에 선택하거나 이 표에 끌어놓아 추가 · pdf, 이미지, hwp, doc, xls, dwg 등 · 파일당 ' + C.MAX_MB + 'MB 이하</div>' +
+      '</div>' +
       '</section>';
   }
 
@@ -108,16 +110,30 @@
       $('.q-nosite').hidden = list.length > 0;
     }
     function renderFiles(s) {
-      var ul = s.querySelector('.q-files');
-      ul.innerHTML = s._files.map(function (f, i) {
-        var full = f.file_path ? f.file_name : f.file.name;
-        var name = f.file_path
-          ? '<a href="' + C.esc(C.fileUrl(f.file_path, full)) + '" download="' + C.esc(full) + '" rel="noopener" title="' + C.esc(full) + ' — 클릭하면 다운로드">↓ ' + C.esc(opt.fullNames ? full : shortName(full)) + '</a>'
-          : '<span title="' + C.esc(full) + '">' + C.esc(opt.fullNames ? full : shortName(full)) + '</span> <small class="q-pend">(' + (opt.onSaveSite ? '저장 시 업로드' : '등록 시 업로드') + ')</small>';
-        return '<li>' + name + ' <small>' + C.size(f.file_size != null ? f.file_size : f.file.size) + '</small>' +
-          '<button type="button" class="q-link q-del" data-act="rm-file" data-i="' + i + '" aria-label="파일 제거">제거</button></li>';
-      }).join('');
-      s.querySelector('.q-fcount').textContent = s._files.length ? '(' + s._files.length + ')' : '';
+      var tb = s.querySelector('.q-board tbody');
+      tb.innerHTML = s._files.length ? s._files.map(function (f, i) {
+        var saved = !!f.file_path, full = saved ? f.file_name : f.file.name;
+        var dl = saved
+          ? '<a class="q-btn q-btn-line q-btn-sm q-dlbtn" href="' + C.esc(C.fileUrl(f.file_path, full)) + '" download="' + C.esc(full) + '" rel="noopener" aria-label="' + C.esc(full) + ' 다운로드">다운로드</a>'
+          : '<span class="q-pend">저장 후 가능</span>';
+        return '<tr><td class="c-no">' + (i + 1) + '</td><td class="c-nm" title="' + C.esc(full) + '">' + C.esc(opt.fullNames ? full : shortName(full)) +
+          (saved ? '' : ' <small class="q-pend">(' + (opt.onSaveSite ? '저장 시 업로드' : '등록 시 업로드') + ')</small>') + '</td>' +
+          '<td class="c-sz">' + C.size(f.file_size != null ? f.file_size : f.file.size) + '</td><td class="c-dl">' + dl + '</td>' +
+          '<td class="c-rm"><button type="button" class="q-link q-del" data-act="rm-file" data-i="' + i + '" aria-label="파일 삭제">삭제</button></td></tr>';
+      }).join('') : '<tr><td colspan="5" class="q-board-empty">첨부된 파일이 없습니다. ‘+ 파일 추가’로 여러 개를 올릴 수 있습니다.</td></tr>';
+      s.querySelector('.q-fcount').textContent = s._files.length ? '(' + s._files.length + '개)' : '';
+    }
+    /* 파일 여러 개 추가: 파일 선택(복수) 또는 끌어놓기. 형식·크기·중복 검사 */
+    function addFiles(s, list) {
+      var errs = [], added = 0;
+      Array.prototype.forEach.call(list, function (f) {
+        var er = C.checkFile(f); if (er) { errs.push(er); return; }
+        var dup = s._files.some(function (x) { return x.file ? (x.file.name === f.name && x.file.size === f.size) : (x.file_name === f.name && +x.file_size === f.size); });
+        if (dup) { errs.push('"' + f.name + '" — 이미 추가된 파일입니다.'); return; }
+        s._files.push({ file: f }); added++;
+      });
+      renderFiles(s); if (added) setDirty(s, true);
+      say(errs.join('\n') || (added ? added + '개 파일이 추가되었습니다.' + (opt.onSaveSite && mode !== 'new' ? ' ‘저장’을 누르면 업로드됩니다.' : '') : ''), !errs.length && !!added);
     }
     function setDirty(s, on) {
       if (!opt.onSaveSite || mode === 'new') return;
@@ -171,11 +187,13 @@
     });
     form.addEventListener('change', function (e) {
       if (e.target.type !== 'file') return;
-      var s = e.target.closest('.q-site'), errs = [];
-      Array.prototype.forEach.call(e.target.files, function (f) {
-        var er = C.checkFile(f); if (er) errs.push(er); else s._files.push({ file: f });
-      });
-      e.target.value = ''; renderFiles(s); setDirty(s, true); say(errs.join('\n'));
+      addFiles(e.target.closest('.q-site'), e.target.files); e.target.value = '';
+    });
+    form.addEventListener('dragover', function (e) { var bw = e.target.closest && e.target.closest('.q-boardbox'); if (bw) { e.preventDefault(); bw.classList.add('q-drag'); } });
+    form.addEventListener('dragleave', function (e) { var bw = e.target.closest && e.target.closest('.q-boardbox'); if (bw && !bw.contains(e.relatedTarget)) bw.classList.remove('q-drag'); });
+    form.addEventListener('drop', function (e) {
+      var bw = e.target.closest && e.target.closest('.q-boardbox'); if (!bw) return;
+      e.preventDefault(); bw.classList.remove('q-drag'); addFiles(bw.closest('.q-site'), e.dataTransfer.files);
     });
     function pwToggle(open) {
       var box = $('.q-pwbox'), t = $('[data-act="pwopen"]');
