@@ -21,20 +21,26 @@
     BAD_LOGIN: '아이디 또는 비밀번호가 맞지 않습니다.'
   };
 
-  function ls(k, v) {
-    try {
-      if (v === undefined) return sessionStorage.getItem(k);
-      if (v === null) sessionStorage.removeItem(k); else sessionStorage.setItem(k, v);
-    } catch (e) { /* 저장소를 못 쓰는 환경: 새로고침 시 다시 로그인 */ }
-    return null;
-  }
+  /* 로그인 토큰은 화면(메모리)에만 보관합니다. 새로고침·탭 닫기·주소 이동 시 사라져 다시 로그인해야 하며,
+     그때 서버의 세션도 함께 종료합니다. (브라우저 저장소에는 저장하지 않음) */
   var mem = {};
   function token(scope, v) {
     var k = 'cheum_tok_' + scope;
-    if (v === undefined) return mem[k] || ls(k);
-    mem[k] = v || null; ls(k, v || null);
+    if (v === undefined) return mem[k] || null;
+    mem[k] = v || null;
     return v;
   }
+  try { sessionStorage.removeItem('cheum_tok_admin'); sessionStorage.removeItem('cheum_tok_customer'); } catch (e) { /* 이전 버전이 남긴 토큰 정리 */ }
+  function endSessions() {
+    if (!BASE || !KEY) return;
+    Object.keys(mem).forEach(function (k) {
+      var t = mem[k]; if (!t) return; mem[k] = null;
+      try {
+        fetch(BASE + '/rest/v1/rpc/logout', { method: 'POST', keepalive: true, headers: hdr({ 'Content-Type': 'application/json' }), body: JSON.stringify({ p_token: t }) });
+      } catch (e) { /* 무시 */ }
+    });
+  }
+  window.addEventListener('pagehide', endSessions);
   function msgOf(m) {
     m = String(m || '');
     if (m.indexOf('ERR:') === 0) return m.slice(4);

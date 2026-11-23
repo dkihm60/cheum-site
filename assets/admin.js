@@ -4,7 +4,7 @@
   var C = window.Cheum, F = window.CheumForm, esc = C.esc;
   var app = document.getElementById('app');
   var SCOPE = 'admin';
-  var BUILD = '2026-11-23 h · 파일 30MB';
+  var BUILD = '2026-11-23 i · 새로고침 시 재로그인';
   var S = { tab: 'co', view: 'all', q: '', companies: [], users: [], me: '' };
 
   function tok() { return C.token(SCOPE); }
@@ -20,8 +20,8 @@
   function loginView(note) {
     app.innerHTML = '<div class="q-card q-login" style="margin-top:40px"><h2>관리자 로그인</h2>' +
       (C.ready ? '' : '<div class="q-note"><b>서비스 연결 전입니다.</b> assets/quote-config.js 에 Supabase 정보를 입력해야 합니다.</div>') +
-      '<form novalidate><div class="q-f"><label for="a-id">아이디</label><input id="a-id" autocomplete="username"></div>' +
-      '<div class="q-f"><label for="a-pw">비밀번호</label><input id="a-pw" type="password" autocomplete="current-password"></div>' +
+      '<form novalidate><div class="q-f"><label for="a-id">아이디</label><input id="a-id" autocomplete="off" autocapitalize="off" spellcheck="false"></div>' +
+      '<div class="q-f"><label for="a-pw">비밀번호</label><input id="a-pw" type="password" autocomplete="new-password"></div>' +
       '<p class="q-msg ' + (note ? 'err' : '') + '" role="alert">' + esc(note || '') + '</p>' +
       '<button class="q-btn q-btn-red" style="width:100%" type="submit">로그인</button></form></div>';
     var f = app.querySelector('form'), m = f.querySelector('.q-msg');
