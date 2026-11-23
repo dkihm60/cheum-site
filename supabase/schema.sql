@@ -555,8 +555,8 @@ on conflict (username) do nothing;
 -- ---------------------------------------------------------------- 파일 저장소 (Storage)
 -- 파일 경로는 추측 불가능한 무작위 값이며, 경로 목록은 로그인한 관리자·해당 업체에게만 RPC로 제공됩니다.
 insert into storage.buckets (id, name, public, file_size_limit)
-values ('quote-files', 'quote-files', true, 10485760)          -- 10MB
-on conflict (id) do update set public = true, file_size_limit = 10485760;
+values ('quote-files', 'quote-files', true, 31457280)          -- 30MB
+on conflict (id) do update set public = true, file_size_limit = 31457280;
 
 drop policy if exists "cheum quote upload" on storage.objects;
 create policy "cheum quote upload" on storage.objects

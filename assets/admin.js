@@ -4,7 +4,7 @@
   var C = window.Cheum, F = window.CheumForm, esc = C.esc;
   var app = document.getElementById('app');
   var SCOPE = 'admin';
-  var BUILD = '2026-11-23 g · 첨부파일 게시판';
+  var BUILD = '2026-11-23 h · 파일 30MB';
   var S = { tab: 'co', view: 'all', q: '', companies: [], users: [], me: '' };
 
   function tok() { return C.token(SCOPE); }

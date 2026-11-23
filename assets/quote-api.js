@@ -12,7 +12,7 @@
     for (var k in extra) h[k] = extra[k];
     return h;
   }
-  var MAX_MB = 10;
+  var MAX_MB = 30;
   var EXT_OK = ['pdf', 'jpg', 'jpeg', 'png', 'gif', 'zip', 'xls', 'xlsx', 'doc', 'docx', 'hwp', 'hwpx', 'ppt', 'pptx', 'dwg', 'dxf', 'txt'];
   var MSG = {
     AUTH_REQUIRED: '로그인이 필요하거나 접속 시간이 만료되었습니다. 다시 로그인해 주세요.',
